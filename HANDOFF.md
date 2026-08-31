@@ -19,37 +19,96 @@ into the numbered sections below only for the *why* behind something.
 **Done:**
 - Repo scaffolding (`common/`, `stages/`, `tests/`, `scripts/`, `paper/`,
   docs) pushed to `https://github.com/patricio-c/Lyman-Alpha-PBHs` (public).
-  `legacy/` is still empty on GitHub — nothing has been migrated yet.
-- Repo cloned onto Clementina (`snmgt01`) over SSH through the cluster
-  proxy (see section 6). Not yet migrated.
-- Local sanity check passed: `python -m compileall` compiles clean.
-  `tests/test_estimator.py` was not run on the laptop (no `scipy` in that
-  env) — run it on Clementina instead, where `conda activate astro` has it.
+- Migration done 2026-08-31: `legacy/` populated on Clementina,
+  `VERIFY OK`, committed, pushed. The old `LOS/` directory can be deleted
+  whenever — both conditions are met, no rush.
+- Geometry check passed clean 2026-08-31. Every number in section 5 matched
+  exactly. No unit bug in this pair.
+- LOS-match check run 2026-08-31 and FAILED. The sightlines are not paired.
+  See "Non-obvious facts".
+- Resampling machinery and three new tests added 2026-08-31:
+  `common/boot.py`, `tests/t9_unpaired_significance.py`,
+  `tests/t10_delta_p1d.py`, `tests/t11_bias_bk.py`. `common/units.py`
+  gained `growth_factor(z)` and `common_window(zs)`.
+  `tests/test_estimator.py` now covers all of it and passes. It needs no
+  data and takes a second — run it before anything else.
 
 **Pending, in order:**
-1. ~~On Clementina, inside the clone: `bash scripts/migrate.sh
-   /data/contrib/pad_140/pcolazo/LOS`, then `bash scripts/verify.sh`.~~
-   **Done 2026-08-31** — `VERIFY OK`, committed, pushed. Old `LOS/` can be
-   deleted whenever (both conditions met), no rush.
-2. ~~Step 3 (the two gating checks)~~ **Done 2026-08-31, mixed result —
-   see "Non-obvious facts" below, this is important.** Geometry check
-   passed clean. LOS-match check FAILED: the sightlines are not paired.
-   Fix before trusting `t8_single_los.py` or re-quoting the 20σ:
-   re-run the SWIFT LOS output for both boxes with the same seed/position
-   list, then re-run `stages/02_check_los_match.py` to confirm.
-3. Steps 4-6 of section 5 below (the analysis, t7, the paper) are
-   unchanged and still pending. Step 4 can proceed now — it never assumed
-   pairing — but hold off on anything that reports the 20σ number until
-   it is re-quoted as unpaired (weaker) or the LOS files are re-shot.
-4. Two more datasets to fold in once the CDM/FCT pair is done — see the
-   new facts below and section 4:
-   - 15 additional runs, already extracted with correct on-the-fly LOS
-     output (per Pato). Their ICs were made *without* monofonIC's
-     `masked=2`, so treat them like the `more_power` case for `t7`, not
-     like the original pair — see below.
-   - `lyman/murgia/{cdm,M2,M3}` — a different snapshot/LOS grid (3
-     snapshots, 7 LOS files, not the usual 5/17). Redshifts have not been
-     checked; do not assume `los_000N` lines up with any particular z.
+1. **Extract LOS caches at more redshifts.** Queue job. This blocks
+   everything else and it is not close: the whole argument is redshift
+   evolution, and there is exactly one redshift on disk. 17 LOS files
+   exist from z=5 to z=1.8. `t11_bias_bk.py` refuses to interpret a single
+   point and says so in its own output.
+2. Run `tests/t9_unpaired_significance.py` on the existing z=3 caches. Pass
+   `--los-a`/`--los-b`: without the sightline positions it skips the block
+   jackknife, which is the part worth having. Cheap, no queue.
+3. Run `tests/t10_delta_p1d.py` on the same caches. Also cheap.
+4. **Stage 03 — `A_P` and `A_b` from the initial conditions.** Does not
+   exist yet and `t11` cannot run without it. The Poisson amplitude is
+   analytic (`P_Poisson = 1/n_PBH` in Mpc^3, from `f_PBH` and the mass
+   function); `A_b` comes from the Sureda et al. parametrisation. Computing
+   them is not enough — measure the z=198 box with Pylians and check the
+   white-noise plateau sits where `A_P` predicts. Watch the `h` convention:
+   `(Mpc/h)^3` vs `Mpc^3` is a factor `h^3 = 0.316`, which is why `t11`
+   has no default for `--units`.
+5. **`k_F(z)`, the filtering scale, for `k_max`.** No new runs needed: fit
+   it from the P_gas/P_matter suppression already measured (Gnedin & Hui).
+   It is the most fragile input in the programme because the broken term
+   scales as `k_max^4`.
+6. `t11` for real, once 4 and 5 exist.
+7. Transferability test (GOAL stage C): repaint at three `tau_eff` and two
+   `T0`, check `R(k)` moves at the percent level. Hours of cache, not of
+   compute, and it is a gate — if `R(k)` is not stable the ratio is not the
+   observable and the strategy changes. `--impose-trho` already exists in
+   `legacy/prepatch/`.
+8. `t7`. Its priority went up, see the QLA fact below.
+9. Steps 4-6 of section 5 (the analysis on existing caches, the paper) are
+   unchanged. Step 4 can proceed at any time — it never assumed pairing.
+10. Two more datasets to fold in once the CDM/FCT pair is done — see
+    section 4:
+    - 15 additional runs, extracted with correct on-the-fly LOS output.
+      Their ICs were made *without* monofonIC's `masked=2`, so treat them
+      like the `more_power` case for `t7`, not like the original pair.
+    - `lyman/murgia/{cdm,M2,M3}` — a different snapshot/LOS grid (3
+      snapshots, 7 LOS files, not the usual 5/17). Redshifts have not been
+      checked; do not assume `los_000N` lines up with any particular z.
+
+**Decisions taken 2026-08-31, and why:**
+- **Re-quote the significance before deciding whether to re-shoot the LOS.**
+  Two options were on the table: re-run the SWIFT LOS output for both boxes
+  with a shared seed/position list, or re-derive the 20 sigma as an unpaired
+  test. They are not alternatives. The re-quote is hours on caches that
+  already exist and it is *diagnostic*: it says whether the pairing was
+  load-bearing at all. Re-shooting is days of queue plus the risk of a new
+  discrepancy against the caches everything else is built on, and `t7` needs
+  sightlines re-shot anyway, so bundle it there rather than running a
+  separate campaign. Order: re-quote first, re-shoot with `t7`.
+- **Do not assume the unpaired number comes out weaker.** A bootstrap
+  *measures* the covariance between the two samples, it does not assume one.
+  Resampling a common index set and differencing gives
+  `var_A + var_B - 2cov`, and when the lines are unrelated the `cov` in the
+  data is already zero. A paired bootstrap over a fake pairing should
+  therefore degrade to the unpaired answer by itself. That is a claim about
+  the data, so `t9` runs both and prints them side by side instead of
+  arguing it. If they agree, the correction to make is to the *description*
+  of the test, not to the number.
+- **Quote the block jackknife, not the bootstrap.** 6144 sightlines through
+  a 40 Mpc/h box sit ~0.5 Mpc/h apart, far below the correlation length.
+  They are not 6144 independent measurements, and every estimator that
+  resamples individual lines assumes they are. `t9` reports the effective
+  number of independent sightlines. This is a bigger threat to the quoted
+  significance than the pairing ever was, and neither of the two original
+  options addressed it.
+- **The tiling recovers part of what the broken pairing cost.** Line *i* of
+  CDM is not line *i* of FCT, but tile *b* of CDM and tile *b* of FCT are
+  the same region of the same initial conditions. The large-scale variance
+  a pairing was supposed to cancel is a property of the region, not of the
+  line, so deleting the same tile from both runs cancels it without any
+  sightline being matched.
+- **The objectives document lives outside this repository, deliberately.**
+  Ask Pato where. It is not in `.gitignore` yet — decide that before it is
+  ever committed, because a file that reaches a public repo stays in the
+  git history even after it is deleted, and forks keep it.
 
 **Non-obvious facts learned this session:**
 - **The paired-sightline assumption is false — checked for real on
@@ -57,20 +116,58 @@ into the numbered sections below only for the *why* behind something.
   --z 3.0` on Clementina: 0% of lines match by index (median offset 20.4
   internal units against a tolerance of 0.006 — off by ~35% of the box),
   and no valid one-to-one permutation exists either (0.07% within
-  tolerance). This was open question #3 below; it is now answered,
-  negatively. `t8_single_los.py` is currently comparing unrelated
-  sightlines — do not trust its output. The paired bootstrap's 20σ, which
-  was presented at COSMO-26 on 2026-08-27, assumed a pairing that does not
-  exist and needs to be re-quoted from an unpaired test (expect it to come
-  out weaker). **The ensemble results — P1D, the FCT/CDM ratio, the 3D
-  power — never assumed pairing and are unaffected; the main finding
-  stands.** If the 20σ number is anywhere in circulating talk material,
-  flag it for correction.
-- The companion geometry check passed clean:
-  `stages/01_extract_los.py --run fct40 --z 3.0 --geometry-only` matched
-  every expected number in section 5 exactly (`H = 306.3077 km/s/Mpc`,
-  `v_box = 4497.91 km/s`, `dv = 2.196245 km/s`, `k[s/km]->k[h/Mpc] x
-  112.4477`). No unit bug in this pair.
+  tolerance). An offset that size is not a shift, it is independent random
+  positions: the two runs drew their sightlines separately. Before planning
+  any re-shoot, compare the `LineOfSight` block of the two parameter files.
+  If it is a different seed, the fix is editing a `.yml`; if SWIFT seeds
+  from something run-dependent, it has to go through `legacy/relos.py` with
+  an explicit position list, which only works at the redshifts where
+  snapshots exist (z = 198, 7, 5, 3, 2).
+  `t8_single_los.py` is currently comparing unrelated sightlines — do not
+  trust its output, and note that its docstring still states the pairing as
+  fact in the header. Fix that docstring whatever else happens, or the next
+  session reads it and believes it again.
+  **The ensemble results — P1D, the FCT/CDM ratio, the 3D power — never
+  assumed pairing and are unaffected; the main finding stands.** If the 20
+  sigma is anywhere in circulating talk material, flag it for correction —
+  but send one mail with the corrected number after `t9`, not a "we might
+  be wrong" mail now.
+- **6144 or 1536 sightlines is still open, and it matters more than the
+  pairing.** The files hold 6144, the published numbers say 1536. That is a
+  factor 2 in any quoted sigma, larger than anything the pairing does.
+  Resolve it before requoting an error bar. `t9` aborts if the sightline
+  count of the cache disagrees with the LOS file, which is one way to find
+  out.
+- **`desi_window()` floats with redshift.** It returns
+  `k_max = 0.5 pi / R_z`, which grows with z. Integrating an observable
+  over it bin by bin means integrating over a different window in each bin,
+  and the "redshift evolution" that comes out contains a purely
+  instrumental component. `common_window(zs)` returns the fixed
+  intersection and is what the new tests use. Enforce it anywhere an
+  integrated quantity is computed.
+- **The `k << k_max` approximation is not automatically safe at the top of
+  the window.** With the fixed common window over z = 2.2 to 4.0
+  (`k2 = 0.02548 s/km`), the comoving edge is 1.77 Mpc^-1 at z = 2.2 and
+  2.16 Mpc^-1 at z = 4.0. The correction `(k/k_max)^2` is 0.35% for
+  `k_F = 30 Mpc^-1`, 1.2% for `k_F = 20`, and 4.7% for `k_F = 10` — and it
+  grows with z, which is the axis the whole signal lives on. So the first
+  fit in `t11` (constant versus `k_max^2 - k^2` at equal dof) is not a
+  formality; it tests a premise that may not hold. This is another reason
+  `k_F` has to be measured rather than assumed.
+- **`D^2(2.2)/D^2(4.0) = 2.40`.** That is the calculable part of the
+  redshift lever, from `units.growth_factor`. Everything above that ratio
+  in the measured evolution is filtering scale, thermal state and QLA — the
+  residual `t11` reports, and the thing that actually has to be modelled.
+- **`b` measured on these runs is `b` under QLA, not `b`.** The QLA scheme
+  converts 49.8% of the FCT baryons against 14.1% in CDM, and a run with
+  feedback would return much of that gas. That makes the central measurable
+  a calibration of this subgrid scheme rather than a portable transfer
+  function, and it is the first thing a referee will push on. It does not
+  block publication, but it has to be said out loud in the paper — and it
+  changes what `t7` is for. `t7` is no longer only "the test that closes the
+  argument": it is the only bound available on how much of `b` is QLA.
+  `b(QLA)` and `b(stars put back)` are the two ends of the systematic
+  interval on the paper's central number.
 - **Mass-separability of the converted gas is per-run, not fixed.** The
   original 40 Mpc/h CDM/FCT pair used monofonIC's `masked=2` for the ICs,
   so DM and the QLA-converted gas end up with different particle masses in
@@ -85,7 +182,8 @@ into the numbered sections below only for the *why* behind something.
   (`172.28.3.3:3128`). See section 6 for the exact `~/.ssh/config` entry
   and the GitHub SSH-key setup. This is the flow that actually works on
   Clementina; the plain HTTPS+token clone in Step 2 below is for the
-  laptop, not the cluster.
+  laptop, not the cluster. It also means the DESI DR1 files cannot be
+  fetched from the cluster: download them on the laptop and `scp`.
 
 ---
 
