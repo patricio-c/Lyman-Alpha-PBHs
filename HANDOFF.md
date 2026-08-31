@@ -27,14 +27,21 @@ into the numbered sections below only for the *why* behind something.
   env) — run it on Clementina instead, where `conda activate astro` has it.
 
 **Pending, in order:**
-1. On Clementina, inside the clone: `bash scripts/migrate.sh
-   /data/contrib/pad_140/pcolazo/LOS`, then `bash scripts/verify.sh`. Only
-   delete the old `LOS/` directory after `VERIFY OK` and a push. (The
-   filename mismatch `cocientre_cdm_fct.py` vs the script's expected
-   `cociente_cdm_fct.py` was fixed by renaming the file on Clementina.)
-2. Steps 3-6 of section 5 below (the two gating checks, the analysis, t7,
-   the paper) are unchanged and still pending.
-3. Two more datasets to fold in once the CDM/FCT pair is done — see the
+1. ~~On Clementina, inside the clone: `bash scripts/migrate.sh
+   /data/contrib/pad_140/pcolazo/LOS`, then `bash scripts/verify.sh`.~~
+   **Done 2026-08-31** — `VERIFY OK`, committed, pushed. Old `LOS/` can be
+   deleted whenever (both conditions met), no rush.
+2. ~~Step 3 (the two gating checks)~~ **Done 2026-08-31, mixed result —
+   see "Non-obvious facts" below, this is important.** Geometry check
+   passed clean. LOS-match check FAILED: the sightlines are not paired.
+   Fix before trusting `t8_single_los.py` or re-quoting the 20σ:
+   re-run the SWIFT LOS output for both boxes with the same seed/position
+   list, then re-run `stages/02_check_los_match.py` to confirm.
+3. Steps 4-6 of section 5 below (the analysis, t7, the paper) are
+   unchanged and still pending. Step 4 can proceed now — it never assumed
+   pairing — but hold off on anything that reports the 20σ number until
+   it is re-quoted as unpaired (weaker) or the LOS files are re-shot.
+4. Two more datasets to fold in once the CDM/FCT pair is done — see the
    new facts below and section 4:
    - 15 additional runs, already extracted with correct on-the-fly LOS
      output (per Pato). Their ICs were made *without* monofonIC's
@@ -45,6 +52,25 @@ into the numbered sections below only for the *why* behind something.
      checked; do not assume `los_000N` lines up with any particular z.
 
 **Non-obvious facts learned this session:**
+- **The paired-sightline assumption is false — checked for real on
+  2026-08-31.** `stages/02_check_los_match.py --run-a cdm40 --run-b fct40
+  --z 3.0` on Clementina: 0% of lines match by index (median offset 20.4
+  internal units against a tolerance of 0.006 — off by ~35% of the box),
+  and no valid one-to-one permutation exists either (0.07% within
+  tolerance). This was open question #3 below; it is now answered,
+  negatively. `t8_single_los.py` is currently comparing unrelated
+  sightlines — do not trust its output. The paired bootstrap's 20σ, which
+  was presented at COSMO-26 on 2026-08-27, assumed a pairing that does not
+  exist and needs to be re-quoted from an unpaired test (expect it to come
+  out weaker). **The ensemble results — P1D, the FCT/CDM ratio, the 3D
+  power — never assumed pairing and are unaffected; the main finding
+  stands.** If the 20σ number is anywhere in circulating talk material,
+  flag it for correction.
+- The companion geometry check passed clean:
+  `stages/01_extract_los.py --run fct40 --z 3.0 --geometry-only` matched
+  every expected number in section 5 exactly (`H = 306.3077 km/s/Mpc`,
+  `v_box = 4497.91 km/s`, `dv = 2.196245 km/s`, `k[s/km]->k[h/Mpc] x
+  112.4477`). No unit bug in this pair.
 - **Mass-separability of the converted gas is per-run, not fixed.** The
   original 40 Mpc/h CDM/FCT pair used monofonIC's `masked=2` for the ICs,
   so DM and the QLA-converted gas end up with different particle masses in
@@ -499,12 +525,27 @@ without a local clone.
    single most valuable unknown right now.
 2. **6144 or 1536 sightlines?** The LOS files hold 6144. The published
    numbers say 1536. Find out which was used before requoting any error bar.
-3. **Are the sightlines matched between runs?** `stages/02_check_los_match.py`
-   answers it. Until it has run, treat `t8_single_los.py` and the 20σ from
-   the paired bootstrap as provisional.
+3. **Are the sightlines matched between runs?** **Answered 2026-08-31: no.**
+   See section 0 for the numbers. `t8_single_los.py` and the 20σ from the
+   paired bootstrap are not just provisional now, they are known wrong as
+   currently computed — fix by re-shooting the LOS output with a shared
+   seed/position list, or re-derive the significance unpaired.
 4. **What temperature to give the reinjected gas in t7?** There is no right
    answer, so the script sweeps `T0` by factors of 0.5, 1 and 2 and the
    result has to be shown insensitive to the choice. Do not quietly pick one.
+5. **Does `swift_extract.py` agree with SpectWizard?** Two independently
+   written codes computing the same physics (SPH deposition + Voigt
+   integral along the sightline) are not guaranteed to agree in detail —
+   `swift_extract.py`'s own bug history (a 5.6x tau overestimate from a
+   missing impact parameter, catastrophic cancellation in the Voigt
+   approximation, see `paper/audit.tex` appendix) shows how sensitive this
+   calculation is to implementation choices, even within one codebase. Not
+   yet tested. The design boundary (section 2) makes this cheap: get
+   María to run SpectWizard on the same LOS file, save a `tau`/`dv`/`z`
+   cache in the same format, and feed it into `stages/04_p1d.py` alongside
+   the `swift_extract` cache — same pattern as the existing `--sherwood`
+   flag. Worth doing as an independent, external check, not just the five
+   internal ablations already in the "what we already know" table.
 
 ---
 
@@ -569,3 +610,15 @@ context as needed. The convention going forward:
   happened — if you are not sure whether the previous session finished
   something, check the repo state (`git log`, does the file exist, does
   the test pass) rather than trusting a stale bullet point.
+
+**On model choice: switch to a stronger model for anything delicate.**
+Routine work — git, running scripts, migration, formatting, following a
+checklist like this one — is fine on the default model. Switch to a
+stronger one (e.g. Opus) for moments where the reasoning itself is
+load-bearing for the science: interpreting whether a result like the
+LOS-mismatch above changes what the paper can claim, auditing `legacy/`
+code for correctness rather than just running it, deciding how to frame a
+borderline or weakened result for a critical reviewer (Viel), or writing
+the parts of the paper that make the actual scientific argument. If it is
+the kind of thing that would be embarrassing to get subtly wrong in front
+of a reviewer, it is worth the switch.
