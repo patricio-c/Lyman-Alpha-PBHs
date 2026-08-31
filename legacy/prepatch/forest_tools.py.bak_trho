@@ -1,0 +1,387 @@
+#!/usr/bin/env python
+"""
+forest_tools.py - Herramienta unica para el analisis del bosque, con cache.
+
+La extraccion de tau es lo caro (minutos por corrida). Se hace UNA vez con el
+subcomando `cache` y queda guardada en un .npz; despues todas las figuras
+salen en segundos desde el cache, asi se puede iterar sobre el diseño de los
+graficos sin reprocesar nada.
+
+Subcomandos:
+
+  cache   LOS de SWIFT -> tau[nlos, npix] guardado en .npz
+  ratio   dos caches   -> cociente P1D, opcionalmente con el P(k) 3D encima
+  pdf     dos caches   -> PDF del flujo transmitido, ambas al mismo tau_eff
+  trho    dos LOS      -> relacion temperatura-densidad y ajuste de T0, gamma
+
+Ejemplos:
+    python forest_tools.py cache --los regen/cdm40.hdf5 --treecool TREECOOL \\
+        --out cache_cdm.npz
+    python forest_tools.py ratio --a cache_cdm.npz --b cache_fct.npz \\
+        --tau-eff 0.3719 --scan-tau-eff --out ratio.png
+    python forest_tools.py pdf --a cache_cdm.npz --b cache_fct.npz \\
+        --tau-eff 0.3719 --out pdf.png
+    python forest_tools.py trho --los-a regen/cdm40.hdf5 \\
+        --los-b regen/fct40.hdf5 --out trho.png
+"""
+
+import argparse
+import sys
+
+import numpy as np
+
+from sherwood_los import flux_power_1d, gamma_hi, rescale_tau, tau_eff
+
+LAMBDA_LYA = 1215.6701
+C_KMS = 2.99792458e5
+K_B = 1.380649e-16
+M_H = 1.67262192e-24
+MPC_CM = 3.0856775814913673e24
+
+
+def k_conversions(z, hz, h):
+    """(a Mpc^-1 comovil, a h/Mpc) desde k en s/km."""
+    return hz / (1.0 + z), hz / ((1.0 + z) * h)
+
+
+# ---------------------------------------------------------------------------
+# cache
+# ---------------------------------------------------------------------------
+
+def cmd_cache(args):
+    from swift_extract import extract_all, open_los_file
+    meta = open_los_file(args.los)
+    G = gamma_hi(args.treecool, meta.z)
+    print(f"z = {meta.z:.4f}, Gamma_HI = {G:.4e} s^-1")
+    tau, dv, _, diags = extract_all(args.los, args.npix, G,
+                                    max_los=args.max_los,
+                                    normalize=not args.no_normalize,
+                                    delta_max=args.delta_max,
+                                    collect_diag=True)
+    wr = np.median([d["wsum_raw_med"] for d in diags])
+    fb = max(d["frac_below_floor"] for d in diags)
+    print(f"particion de la unidad SIN normalizar: mediana = {wr:.4f}")
+    print(f"  (1.0 es lo ideal; muy por debajo => campo submuestreado)")
+    print(f"  peor fraccion de pixeles bajo el piso: {100*fb:.2f}%")
+    print(f"interpolacion normalizada: {'SI' if not args.no_normalize else 'NO'}")
+    np.savez_compressed(
+        args.out, tau=np.asarray(tau, dtype=np.float32), dv=dv, z=meta.z,
+        box_kms=meta.box_kms, h=meta.h, hz=meta.hz,
+        omega_m=meta.omega_m, label=args.label or args.los, source=args.los,
+        normalized=not args.no_normalize, wsum_raw_med=wr,
+        delta_max=args.delta_max if args.delta_max is not None else 0.0)
+    print(f"tau_eff nominal = {tau_eff(np.asarray(tau, np.float64)):.5f}")
+    print(f"escrito -> {args.out}  ({tau.shape[0]} LOS x {tau.shape[1]} px, "
+          f"dv = {dv:.4f} km/s)")
+
+
+def load_cache(path):
+    d = np.load(path, allow_pickle=True)
+    return dict(tau=np.asarray(d["tau"], dtype=np.float64),
+                dv=float(d["dv"]), z=float(d["z"]),
+                box_kms=float(d["box_kms"]), h=float(d["h"]),
+                hz=float(d["hz"]), label=str(d["label"]))
+
+
+# ---------------------------------------------------------------------------
+# ratio
+# ---------------------------------------------------------------------------
+
+def cmd_ratio(args):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    A, B = load_cache(args.a), load_cache(args.b)
+    if abs(A["z"] - B["z"]) > 0.02:
+        sys.exit(f"Redshifts distintos: {A['z']} vs {B['z']}")
+    z, h, hz = A["z"], A["h"], A["hz"]
+    to_mpc, to_hmpc = k_conversions(z, hz, h)
+    la, lb = args.labels
+
+    def ratio_at(target):
+        out = []
+        for D in (A, B):
+            a_ = rescale_tau(D["tau"], target)
+            k, p, e = flux_power_1d(np.exp(-a_ * D["tau"]), D["dv"])
+            out.append((k, p, e, a_))
+        (ka, pa, ea, Aa), (kb, pb, eb, Ab) = out
+        lo, hi = max(ka[1], kb[1]), min(ka[-1], kb[-1]) * 0.5
+        m = (ka >= lo) & (ka <= hi)
+        kk = ka[m]
+        pbi, ebi = np.interp(kk, kb, pb), np.interp(kk, kb, eb)
+        r = pbi / pa[m]
+        rel = np.sqrt((ebi / pbi) ** 2 + (ea[m] / pa[m]) ** 2)
+        return kk, r, rel, Aa, Ab
+
+    kk, r, rel, Aa, Ab = ratio_at(args.tau_eff)
+    print(f"tau_eff = {args.tau_eff:.5f}   A({la}) = {Aa:.5f}   "
+          f"A({lb}) = {Ab:.5f}")
+
+    fig, ax = plt.subplots(figsize=(8.0, 5.2))
+    ax.axhline(1.0, color="k", ls="--", lw=1)
+
+    R_z = C_KMS * 0.8 / ((1.0 + z) * LAMBDA_LYA)
+    desi = (1.0e-3, 0.5 * np.pi / R_z)
+    ax.axvspan(*desi, color="green", alpha=0.07, zorder=0)
+
+    # barrido en tau_eff para ver cuanto del desacuerdo viene del reescalado
+    if args.scan_tau_eff:
+        for t, col in zip(args.scan_tau_eff, ["C0", "C2", "C4", "C5"]):
+            kx, rx, _, _, _ = ratio_at(t)
+            ax.plot(kx, rx, color=col, lw=1.0, alpha=0.8,
+                    label=rf"$\tau_{{\rm eff}}$ = {t:.3f}")
+            print(f"  tau_eff = {t:.4f}: cociente en k=0.005 -> "
+                  f"{np.interp(0.005, kx, rx):.4f}")
+
+    ax.fill_between(kk, r * (1 - rel), r * (1 + rel), color="C3", alpha=0.25)
+    ax.plot(kk, r, color="C3", lw=2.0,
+            label=rf"1D flux, $\tau_{{\rm eff}}$ = {args.tau_eff:.3f}")
+
+    # P(k) 3D encima
+    if args.pk3d_a and args.pk3d_b:
+        d1, d2 = np.loadtxt(args.pk3d_a), np.loadtxt(args.pk3d_b)
+        c = args.cols3d or (1, 2)
+        k3, p3a = d1[:, c[0]], d1[:, c[1]]
+        p3b = np.interp(k3, d2[:, c[0]], d2[:, c[1]])
+        k3v = k3 / to_mpc                      # Mpc^-1 -> s/km
+        s = (k3v >= kk[0]) & (k3v <= kk[-1] * 1.5)
+        ax.plot(k3v[s], (p3b / p3a)[s], color="k", lw=1.8,
+                label="3D matter")
+
+    if args.kt:
+        ax.axvline(args.kt / to_mpc, color="C3", ls=":", lw=1.2)
+    ax.axvline(2.0 * np.pi / A["box_kms"], color="grey", ls=":", lw=1.2)
+    if args.ngas:
+        # Nyquist de particula: k = pi*N/L, con L la caja comovil en Mpc
+        L_mpc = A["box_kms"] / to_mpc
+        ax.axvline(np.pi * args.ngas / L_mpc / to_mpc, color="grey",
+                   ls=":", lw=1.2)
+
+    ax.set(xscale="log", yscale=args.yscale,
+           xlabel=r"$k$  [s km$^{-1}$]",
+           ylabel=rf"$P({lb})\,/\,P({la})$",
+           title=f"z = {z:.1f}")
+    if args.xlim:
+        ax.set_xlim(*args.xlim)
+    if args.ylim:
+        ax.set_ylim(*args.ylim)
+    ax.grid(alpha=0.2, which="both")
+    ax.legend(frameon=False, loc="upper left", fontsize=9)
+
+    tx = ax.secondary_xaxis("top", functions=(lambda x: x * to_hmpc,
+                                              lambda x: x / to_hmpc))
+    tx.set_xlabel(r"$k$  [$h$ Mpc$^{-1}$]")
+
+    y0, y1 = ax.get_ylim()
+    ax.text(np.sqrt(desi[0] * desi[1]), y0 + 0.03 * (y1 - y0),
+            "DESI window", color="green", ha="center", va="bottom",
+            fontsize=9)
+
+    fig.savefig(args.out, dpi=150, bbox_inches="tight")
+    print(f"escrito -> {args.out}")
+    print(f"\nk[h/Mpc] = k[s/km] x {to_hmpc:.2f}    "
+          f"k[Mpc^-1] = k[s/km] x {to_mpc:.2f}")
+    if args.table:
+        np.savetxt(args.table, np.column_stack([kk, r, r * rel]),
+                   header=f"z={z:.4f} tau_eff={args.tau_eff:.6f} "
+                          f"A_{la}={Aa:.6f} A_{lb}={Ab:.6f}\n"
+                          "k[s/km]  ratio  error")
+        print(f"escrito -> {args.table}")
+
+
+# ---------------------------------------------------------------------------
+# pdf del flujo
+# ---------------------------------------------------------------------------
+
+def cmd_pdf(args):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    A, B = load_cache(args.a), load_cache(args.b)
+    la, lb = args.labels
+    z = A["z"]
+    edges = np.linspace(0.0, 1.0, args.bins + 1)
+    cen = 0.5 * (edges[1:] + edges[:-1])
+
+    res = {}
+    for D, lab in [(A, la), (B, lb)]:
+        a_ = rescale_tau(D["tau"], args.tau_eff)
+        F = np.exp(-a_ * D["tau"]).ravel()
+        n, _ = np.histogram(F, bins=edges, density=True)
+        res[lab] = (n, a_, F.mean(), F.size)
+        print(f"{lab}: A = {a_:.5f}, <F> = {F.mean():.5f}, "
+              f"{F.size} pixeles")
+
+    fig, (ax, bx) = plt.subplots(
+        2, 1, figsize=(7.4, 6.4), sharex=True,
+        gridspec_kw={"height_ratios": [2.4, 1], "hspace": 0.07})
+
+    ax.step(cen, res[la][0], where="mid", color="C0", lw=2.0, label=la)
+    ax.step(cen, res[lb][0], where="mid", color="C3", lw=1.6, ls="--",
+            label=lb)
+    ax.set(yscale="log", ylabel="PDF",
+           title=(f"z = {z:.1f}, both rescaled to "
+                  + rf"$\tau_{{\rm eff}}$ = {args.tau_eff:.4f}"))
+    ax.legend(frameon=False)
+    ax.grid(alpha=0.2, which="both")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rr = res[lb][0] / res[la][0]
+    bx.axhline(1.0, color="k", ls="--", lw=1)
+    bx.step(cen, rr, where="mid", color="C3", lw=1.8)
+    bx.set(xlabel="Transmitted flux $F$", ylabel=f"{lb} / {la}",
+           xlim=(0, 1))
+    if args.ylim:
+        bx.set_ylim(*args.ylim)
+    bx.grid(alpha=0.2)
+
+    fig.savefig(args.out, dpi=150, bbox_inches="tight")
+    print(f"escrito -> {args.out}")
+
+    print(f"\n  {'F':>7}{la:>12}{lb:>12}{'ratio':>9}")
+    for f0 in [0.05, 0.15, 0.3, 0.5, 0.7, 0.85, 0.95]:
+        i = np.argmin(abs(cen - f0))
+        print(f"  {cen[i]:7.3f}{res[la][0][i]:12.4f}"
+              f"{res[lb][0][i]:12.4f}{rr[i]:9.3f}")
+
+
+# ---------------------------------------------------------------------------
+# relacion temperatura-densidad
+# ---------------------------------------------------------------------------
+
+def cmd_trho(args):
+    import h5py
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    def gather(path, nlos):
+        with h5py.File(path, "r") as f:
+            c = f["Cosmology"].attrs
+            z = float(np.atleast_1d(c["Redshift"])[0])
+            hh = float(np.atleast_1d(c["h"])[0])
+            ob = float(np.atleast_1d(c["Omega_b"])[0])
+            names = sorted(k for k in f if k.startswith("LOS_"))[:nlos]
+            rc = float(np.atleast_1d(f[names[0]]["Densities"].attrs[
+                "Conversion factor to CGS (not including cosmological "
+                "corrections)"])[0])
+            rho, T = [], []
+            for nm in names:
+                rho.append(f[nm]["Densities"][:].astype(np.float64))
+                T.append(f[nm]["Temperatures"][:].astype(np.float64))
+        rho = np.concatenate(rho) * rc
+        rho_b = 1.87847e-29 * hh ** 2 * ob        # comovil
+        return np.concatenate(T), rho / rho_b, z
+
+    Ta, Da, z = gather(args.los_a, args.nlos)
+    Tb, Db, _ = gather(args.los_b, args.nlos)
+    la, lb = args.labels
+
+    def fit(D, T):
+        """log10 T = log10 T0 + (gamma-1) log10 Delta, en el IGM difuso."""
+        m = (D > 10 ** args.fit_range[0]) & (D < 10 ** args.fit_range[1]) & (T > 0)
+        x, y = np.log10(D[m]), np.log10(T[m])
+        (g1, c0) = np.polyfit(x, y, 1)
+        return 10 ** c0, g1 + 1.0, m.sum()
+
+    fig, ax = plt.subplots(figsize=(7.4, 5.4))
+    for D, T, lab, col in [(Da, Ta, la, "C0"), (Db, Tb, lb, "C3")]:
+        T0, gam, n = fit(D, T)
+        print(f"{lab}: T0 = {T0:.0f} K,  gamma = {gam:.4f}   "
+              f"({n} particulas en el ajuste)")
+        # mediana en bines de densidad
+        be = np.logspace(-1.5, 2.0, 45)
+        idx = np.digitize(D, be) - 1
+        xs, ys = [], []
+        for b in range(len(be) - 1):
+            s = idx == b
+            if s.sum() > 30:
+                xs.append(np.sqrt(be[b] * be[b + 1]))
+                ys.append(np.median(T[s]))
+        ax.plot(xs, ys, color=col, lw=2.0,
+                label=f"{lab}:  $T_0$ = {T0:.0f} K,  $\\gamma$ = {gam:.2f}")
+        dd = np.logspace(*args.fit_range, 20)
+        ax.plot(dd, T0 * dd ** (gam - 1), color=col, ls=":", lw=1.2)
+
+    ax.set(xscale="log", yscale="log",
+           xlabel=r"$\Delta = \rho\,/\,\bar\rho_{\rm b}$",
+           ylabel=r"$T$  [K]", title=f"z = {z:.1f}")
+    ax.legend(frameon=False, loc="upper left", fontsize=9)
+    ax.grid(alpha=0.2, which="both")
+    fig.savefig(args.out, dpi=150, bbox_inches="tight")
+    print(f"escrito -> {args.out}")
+
+
+# ---------------------------------------------------------------------------
+
+def main():
+    p = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    c = sub.add_parser("cache")
+    c.add_argument("--los", required=True)
+    c.add_argument("--treecool", required=True)
+    c.add_argument("--npix", type=int, default=2048)
+    c.add_argument("--max-los", type=int, default=None)
+    c.add_argument("--label", default=None)
+    c.add_argument("--no-normalize", action="store_true",
+                   help="NO normalizar la interpolacion SPH por la particion "
+                        "de la unidad. Solo para reproducir resultados viejos: "
+                        "sin normalizar, dos corridas con distinta densidad "
+                        "numerica de gas no son comparables.")
+    c.add_argument("--delta-max", type=float, default=None,
+                   help="descartar gas con Delta = rho/rho_b por encima de este valor antes de depositar (test del esquema QLA).")
+    c.add_argument("--out", required=True)
+    c.set_defaults(func=cmd_cache)
+
+    r = sub.add_parser("ratio")
+    r.add_argument("--a", required=True)
+    r.add_argument("--b", required=True)
+    r.add_argument("--tau-eff", type=float, required=True)
+    r.add_argument("--scan-tau-eff", nargs="*", type=float, default=None,
+                   help="curvas extra con otros tau_eff, para ver cuanto del "
+                        "desacuerdo a k chico viene del reescalado")
+    r.add_argument("--labels", nargs=2, default=["CDM", "FCT"])
+    r.add_argument("--pk3d-a", default=None)
+    r.add_argument("--pk3d-b", default=None)
+    r.add_argument("--cols3d", nargs=2, type=int, default=None)
+    r.add_argument("--kt", type=float, default=None,
+                   help="escala de ruptura en Mpc^-1 comovil")
+    r.add_argument("--ngas", type=int, default=None)
+    r.add_argument("--xlim", nargs=2, type=float, default=None)
+    r.add_argument("--ylim", nargs=2, type=float, default=None)
+    r.add_argument("--yscale", choices=["linear", "log"], default="linear")
+    r.add_argument("--table", default=None)
+    r.add_argument("--out", required=True)
+    r.set_defaults(func=cmd_ratio)
+
+    q = sub.add_parser("pdf")
+    q.add_argument("--a", required=True)
+    q.add_argument("--b", required=True)
+    q.add_argument("--tau-eff", type=float, required=True)
+    q.add_argument("--bins", type=int, default=50)
+    q.add_argument("--labels", nargs=2, default=["CDM", "FCT"])
+    q.add_argument("--ylim", nargs=2, type=float, default=None)
+    q.add_argument("--out", required=True)
+    q.set_defaults(func=cmd_pdf)
+
+    t = sub.add_parser("trho")
+    t.add_argument("--los-a", required=True)
+    t.add_argument("--los-b", required=True)
+    t.add_argument("--nlos", type=int, default=200)
+    t.add_argument("--fit-range", nargs=2, type=float, default=[-1.0, 0.0],
+                   help="rango de log10(Delta) para el ajuste de T0 y gamma")
+    t.add_argument("--labels", nargs=2, default=["CDM", "FCT"])
+    t.add_argument("--out", required=True)
+    t.set_defaults(func=cmd_trho)
+
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

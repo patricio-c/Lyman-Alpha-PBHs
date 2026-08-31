@@ -1,0 +1,426 @@
+"""
+Extraccion de profundidades opticas de Lyman-alfa desde LOS de SWIFT.  v2.
+
+CAMBIO CRITICO respecto de v1: la deposicion SPH ahora evalua el kernel en la
+distancia 3D real de cada particula al punto del rayo,
+
+    r = sqrt(b_perp^2 + dx_par^2),
+
+donde b_perp es el parametro de impacto transversal. La v1 usaba solo dx_par
+(como si toda particula estuviera sobre el rayo), lo que sobrestima la
+densidad por un factor ~5-6 en un medio uniforme (verificado con test
+sintetico) y de forma dependiente del entorno en un campo real. Ese error
+producia un campo de flujo casi binario y un factor de reescalado de tau
+absurdo (A ~ 25 en vez de ~1).
+
+La posicion transversal del rayo se lee de los atributos del grupo LOS si
+existen; si no, se estima con la mediana de las coordenadas transversales de
+las particulas con menor radio de suavizado (que por construccion estan
+pegadas al rayo). En ambos casos se verifica la invariante estructural del
+output de SWIFT: TODA particula guardada debe cumplir b <= H = gamma*h.
+Si una fraccion apreciable la viola, la posicion del rayo o las unidades
+estan mal y el codigo aborta.
+
+Deposicion en modo conservativo (Theuns et al. 1998):
+    n_HI(x) = sum_i (m_i X_H f_HI,i / m_H) W(r_i, H_i)
+que conserva exactamente la masa de HI (y por lo tanto la densidad de
+columna). T y v_par se promedian pesados por esa misma contribucion de HI.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import h5py
+import numpy as np
+
+from ionization import neutral_fraction
+
+# Transicion Lyman-alfa
+LAMBDA_LYA_CM = 1215.6701e-8
+GAMMA_LYA = 6.265e8               # [s^-1]
+SIGMA_LYA_DV = 1.34355e-7         # pi e^2 f lambda/(m_e c) [cm^3/s]
+K_B = 1.380649e-16
+M_H = 1.67262192e-24
+MPC_CM = 3.0856775814913673e24
+
+# Nombres posibles del atributo con la posicion del rayo, segun version de SWIFT
+_RAY_ATTR_CANDIDATES = [
+    ("Xpos", "Ypos"), ("Xproj", "Yproj"), ("x_proj", "y_proj"),
+    ("Position_x", "Position_y"),
+]
+
+
+# Debajo de este |x| la aproximacion de Tepper-Garcia sufre cancelacion
+# catastrofica y hay que usar el limite analitico. Ver voigt_hjerting.
+X_SWITCH = 1.0e-2
+
+
+def voigt_hjerting(a, x, exact: bool = False):
+    """
+    H(a,x) de Tepper-Garcia (2006); int H dx = sqrt(pi) verificado a 1e-7.
+    exact=True usa scipy wofz (50x mas lento, solo para validar).
+
+    IMPORTANTE - cancelacion cerca del centro de la linea. La expresion de
+    TG06 contiene el factor a/(sqrt(pi) x^2) multiplicando un corchete que,
+    para x pequeno, es la resta de dos cantidades del orden de Q = 1.5/x^2.
+    Analiticamente se cancelan; en punto flotante el error residual (del
+    orden de eps*Q) queda amplificado por 1/x^2 y produce valores enormes de
+    signo arbitrario. Con a = 5e-4 el error supera 1e-4 para todo
+    |x| < 1.8e-4, y en |x| = 1e-8 la formula devuelve ~1e12 en vez de ~1.
+
+    Esto no es raro en la practica: x = (v_obs - u)/b pasa por cero cada vez
+    que un pixel fuente coincide en velocidad con uno observado, lo que con
+    2048 pixeles y una banda de +/-200 ocurre en algunos de los ~10^5
+    terminos por linea de visión.
+
+    Para |x| < X_SWITCH se usa el limite analitico
+        H(a,x) -> exp(-x^2) - 2a/sqrt(pi),
+    que es exp(a^2) erfc(a) desarrollado a primer orden en a y empalma con la
+    formula completa con error < 1e-6 en el punto de corte.
+    """
+    x = np.asarray(x, dtype=np.float64)
+    a = np.asarray(a, dtype=np.float64)
+    if exact:
+        from scipy.special import wofz
+        return np.real(wofz(x + 1j * a))
+
+    small = np.abs(x) < X_SWITCH
+    # se acota x lejos de cero ANTES de evaluar, para que la rama grande
+    # nunca vea la region catastrofica ni siquiera de forma enmascarada
+    xs = np.where(small, X_SWITCH, np.abs(x))
+    x2 = xs * xs
+    H0 = np.exp(-x2)
+    Q = 1.5 / x2
+    big = H0 - a / (np.sqrt(np.pi) * x2) * (
+        H0 * H0 * (4.0 * x2 * x2 + 7.0 * x2 + 4.0 + Q) - Q - 1.0)
+
+    small_val = np.exp(-x * x) - 2.0 * a / np.sqrt(np.pi)
+    return np.where(small, small_val, big)
+
+
+def doppler_b(T):
+    """b = sqrt(2 k_B T / m_H) [cm/s]."""
+    return np.sqrt(2.0 * K_B * np.asarray(T, dtype=np.float64) / M_H)
+
+
+def kernel_m4(r, H):
+    """Cubic spline M4 3D parametrizado por el radio de soporte H = gamma*h.
+    Normalizacion verificada: int 4 pi r^2 W dr = 1.0000000000."""
+    hs = np.asarray(H, dtype=np.float64) / 2.0
+    q = np.asarray(r, dtype=np.float64) / hs
+    w = np.where(q < 1.0, 1.0 - 1.5 * q ** 2 + 0.75 * q ** 3,
+                 np.where(q < 2.0, 0.25 * (2.0 - q) ** 3, 0.0))
+    return w / (np.pi * hs ** 3)
+
+
+# ---------------------------------------------------------------------------
+# Metadatos del archivo
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SwiftLOSFile:
+    path: str
+    z: float
+    a: float
+    h: float
+    omega_b: float
+    omega_m: float
+    boxsize_int: float
+    hz: float                 # H(z) [km/s/Mpc], del archivo
+    u_length_cgs: float
+    u_mass_cgs: float
+    kernel_gamma: float
+    los_names: list
+
+    @property
+    def box_comoving_mpc(self):
+        return self.boxsize_int * self.u_length_cgs / MPC_CM
+
+    @property
+    def box_proper_mpc(self):
+        return self.box_comoving_mpc * self.a
+
+    @property
+    def box_kms(self):
+        return self.hz * self.box_proper_mpc
+
+    def dv(self, npix: int):
+        return self.box_kms / npix
+
+
+def open_los_file(path: str) -> SwiftLOSFile:
+    with h5py.File(path, "r") as f:
+        hdr, cos, uni = f["Header"].attrs, f["Cosmology"].attrs, f["Units"].attrs
+        u_l = float(np.atleast_1d(uni["Unit length in cgs (U_L)"])[0])
+        u_m = float(np.atleast_1d(uni["Unit mass in cgs (U_M)"])[0])
+        u_t = float(np.atleast_1d(uni["Unit time in cgs (U_t)"])[0])
+        hz_int = float(np.atleast_1d(cos["H [internal units]"])[0])
+        hz = hz_int * (u_l / u_t) / 1.0e5 / (u_l / MPC_CM)
+        try:
+            kg = float(np.atleast_1d(f["HydroScheme"].attrs["Kernel gamma"])[0])
+        except KeyError:
+            kg = 1.825742
+        return SwiftLOSFile(
+            path=path,
+            z=float(np.atleast_1d(cos["Redshift"])[0]),
+            a=float(np.atleast_1d(cos["Scale-factor"])[0]),
+            h=float(np.atleast_1d(cos["h"])[0]),
+            omega_b=float(np.atleast_1d(cos["Omega_b"])[0]),
+            omega_m=float(np.atleast_1d(cos["Omega_m"])[0]),
+            boxsize_int=float(np.atleast_1d(hdr["BoxSize"])[0]),
+            hz=hz, u_length_cgs=u_l, u_mass_cgs=u_m, kernel_gamma=kg,
+            los_names=sorted(k for k in f.keys() if k.startswith("LOS_")),
+        )
+
+
+def _cgs_factor(dset, physical: bool = True) -> float:
+    key = ("Conversion factor to physical CGS (including cosmological corrections)"
+           if physical else
+           "Conversion factor to CGS (not including cosmological corrections)")
+    return float(np.atleast_1d(dset.attrs[key])[0])
+
+
+def detect_los_axis(coords: np.ndarray, box: float) -> int:
+    """
+    Eje de integracion via concentracion circular, robusta al borde periodico.
+
+    Para cada eje se calcula R = |<exp(2 pi i x / L)>|: vale ~0 si las
+    particulas cubren el eje entero (la direccion del rayo) y ~1 si estan
+    apretadas alrededor de un valor (las transversales), INCLUSO si ese valor
+    cae sobre el borde y las coordenadas crudas parecen abarcar toda la caja.
+    Un min/max ingenuo falla exactamente en ese caso.
+    """
+    ang = 2.0 * np.pi * np.asarray(coords, dtype=np.float64) / box
+    R = np.hypot(np.cos(ang).mean(axis=0), np.sin(ang).mean(axis=0))
+    axis = int(np.argmin(R))
+    others = np.delete(R, axis)
+    if R[axis] > 0.6 or others.min() < 0.9:
+        raise ValueError(
+            f"Eje de LOS ambiguo; concentraciones circulares R = {R} "
+            "(espero ~0 en el eje del rayo y ~1 en los transversales)."
+        )
+    return axis
+
+
+def _ray_position(g, perp: np.ndarray, hsml_sup: np.ndarray, box: float):
+    """
+    Posicion transversal del rayo (2 coords, mismas unidades que perp).
+
+    1. Si el grupo LOS tiene atributos con la posicion, se usan.
+    2. Si no, se estima: las particulas con menor radio de suavizado estan,
+       por construccion (b < H), mas pegadas al rayo. La mediana de las
+       coordenadas transversales del 10% con menor H da el rayo con error
+       mucho menor que el H minimo. Con wrapping periodico via mediana
+       circular (angulo medio), por si el rayo cae cerca del borde.
+    """
+    for kx, ky in _RAY_ATTR_CANDIDATES:
+        if kx in g.attrs and ky in g.attrs:
+            return np.array([float(np.atleast_1d(g.attrs[kx])[0]),
+                             float(np.atleast_1d(g.attrs[ky])[0])]), "attrs"
+
+    nsel = max(10, len(hsml_sup) // 10)
+    idx = np.argsort(hsml_sup)[:nsel]
+    ang = 2.0 * np.pi * perp[idx] / box
+    mean_ang = np.arctan2(np.sin(ang).mean(axis=0), np.cos(ang).mean(axis=0))
+    ray = (mean_ang / (2.0 * np.pi) * box) % box
+    return ray, "estimada"
+
+
+# ---------------------------------------------------------------------------
+# Extraccion
+# ---------------------------------------------------------------------------
+
+def extract_tau(path: str, los_name: str, npix: int, gamma_HI: float,
+                meta: SwiftLOSFile | None = None, X_H: float = 0.76,
+                he_state: str = "HeII", n_sigma: float = 8.0,
+                exact_voigt: bool = False, max_b_violation: float = 0.02,
+                normalize: bool = True, w_floor: float = 0.05,
+                delta_max: float | None = None,
+                impose_trho: tuple | None = None):
+    """
+    Devuelve (tau, dv, diag) para una linea de visión.
+
+    Pasos:
+      1. n_HI por particula (equilibrio de fotoionizacion, modulo ionization).
+      2. Deposicion SPH conservativa sobre la grilla, con el kernel evaluado
+         en r = sqrt(b_perp^2 + dx^2). Chequeo estructural: b <= H para todas
+         las particulas; si mas de max_b_violation lo viola, ValueError.
+      3. Integral de Voigt en espacio de velocidades (termico + peculiar),
+         por bandas para no pagar npix^2.
+
+    diag incluye: eje, origen de la posicion del rayo, max(b/H), fraccion de
+    violaciones, suma de pesos SPH (sanidad del muestreo), N_HI total.
+    """
+    if meta is None:
+        meta = open_los_file(path)
+
+    with h5py.File(path, "r") as f:
+        g = f[los_name]
+        coords_int = g["Coordinates"][:].astype(np.float64)
+        rho_c = _cgs_factor(g["Densities"], physical=False)
+        rho = g["Densities"][:].astype(np.float64) * rho_c * (1.0 + meta.z) ** 3
+        T = g["Temperatures"][:].astype(np.float64) * _cgs_factor(g["Temperatures"])
+        vel = g["Velocities"][:].astype(np.float64) * _cgs_factor(g["Velocities"]) / 1.0e5
+        hsml_int = g["SmoothingLengths"][:].astype(np.float64)
+        mass = g["Masses"][:].astype(np.float64) * _cgs_factor(g["Masses"])
+        c_len = _cgs_factor(g["Coordinates"], physical=False)
+
+        axis = detect_los_axis(coords_int, meta.boxsize_int)
+        tr = [i for i in range(3) if i != axis]
+
+        box_int = meta.boxsize_int
+        ray_int, ray_src = _ray_position(g, coords_int[:, tr],
+                                         hsml_int * meta.kernel_gamma, box_int)
+
+    for nm_f, arr in [("Densities", rho), ("Temperatures", T),
+                      ("Masses", mass)]:
+        nbad = int((arr <= 0).sum())
+        if nbad:
+            raise ValueError(
+                f"{los_name}: {nbad}/{arr.size} particulas con {nm_f} <= 0 "
+                f"(min = {arr.min():.4e}). Masas o densidades negativas dan "
+                "tau NEGATIVO y rompen el reescalado a tau_eff. Es el problema "
+                "de masas de bariones negativas de las IC de monofonIC con el "
+                "boost FCT: hay que arreglarlo en las IC, no en la extraccion.")
+
+    frac_cut = 0.0
+    if delta_max is not None:
+        # rho ya esta en cgs FISICAS: Delta = rho / rho_b_media(z)
+        rho_b = 1.87847e-29 * meta.h ** 2 * meta.omega_b * (1.0 + meta.z) ** 3
+        keep = rho / rho_b <= delta_max
+        frac_cut = float(1.0 - keep.mean())
+        if keep.sum() < 10:
+            raise ValueError(f"{los_name}: delta_max={delta_max} deja "
+                             f"{int(keep.sum())} particulas.")
+        coords_int = coords_int[keep]
+        rho, T, vel = rho[keep], T[keep], vel[keep]
+        hsml_int, mass = hsml_int[keep], mass[keep]
+
+    # Geometria en cm propios.
+    to_cm = c_len * meta.a
+    x_par = coords_int[:, axis] * to_cm
+    box_cm = box_int * to_cm
+    Hsup = hsml_int * meta.kernel_gamma * to_cm
+
+    dperp = coords_int[:, tr] - ray_int[None, :]
+    dperp -= box_int * np.round(dperp / box_int)
+    b_perp = np.hypot(dperp[:, 0], dperp[:, 1]) * to_cm
+
+    # --- invariante estructural del output de SWIFT -----------------------
+    ratio = b_perp / Hsup
+    frac_bad = float((ratio > 1.0).mean())
+    if frac_bad > max_b_violation:
+        raise ValueError(
+            f"{los_name}: {100 * frac_bad:.1f}% de particulas con b > H "
+            f"(max b/H = {ratio.max():.2f}, rayo {ray_src}). El output de "
+            "SWIFT solo guarda particulas con b <= H, asi que la posicion "
+            "del rayo o las unidades estan mal. No sigo."
+        )
+
+    if impose_trho is not None:
+        # T = T0 * Delta^(gamma-1) con Delta = rho / rho_b_media(z).
+        # rho ya esta en cgs FISICAS aca.
+        rho_b = 1.87847e-29 * meta.h ** 2 * meta.omega_b * (1.0 + meta.z) ** 3
+        T = float(impose_trho[0]) * (rho / rho_b) ** (float(impose_trho[1]) - 1.0)
+
+    v_par = vel[:, axis]                                   # km/s peculiar fisica
+    n_frac = neutral_fraction(rho * X_H / M_H, T, gamma_HI,
+                              X_H=X_H, he_state=he_state)
+    mHI_over_mH = mass * X_H * n_frac / M_H                # "numero de atomos HI"
+
+    # --- deposicion SPH conservativa --------------------------------------
+    dR = box_cm / npix
+    x_grid = (np.arange(npix) + 0.5) * dR
+    dx = x_grid[None, :] - x_par[:, None]
+    dx -= box_cm * np.round(dx / box_cm)
+
+    r3 = np.sqrt(b_perp[:, None] ** 2 + dx ** 2)
+    w = kernel_m4(r3, Hsup[:, None])                       # [cm^-3]
+
+    n_HI = w.T @ mHI_over_mH                               # [cm^-3]
+    wsum = w.T @ (mass / rho)                              # particion de la unidad
+
+    # T y v se calculan ANTES de normalizar: son cocientes pesados por la
+    # misma w, asi que la normalizacion se cancela en ellos.
+    norm = np.where(n_HI > 0, n_HI, 1.0)
+    T_g = np.where(n_HI > 0, (w.T @ (mHI_over_mH * T)) / norm, 1.0e4)
+    v_g = np.where(n_HI > 0, (w.T @ (mHI_over_mH * v_par)) / norm, 0.0)
+
+    # --- interpolacion SPH normalizada ------------------------------------
+    # En SPH exacto sum_i (m_i/rho_i) W = 1 (particion de la unidad). En la
+    # practica vale menos donde el muestreo es pobre, y entonces n_HI queda
+    # subestimada por ese mismo factor. Dividir por wsum (correccion tipo
+    # Shepard) devuelve la particion de la unidad y hace la deposicion
+    # insensible a la densidad numerica local de particulas.
+    #
+    # Importa MUCHO cuando se comparan dos corridas con distinto numero de
+    # particulas de gas: sin esto, la que tiene menos gas produce un campo
+    # grumoso, con menos correlacion a escalas grandes y mas potencia a
+    # escalas chicas, y ese artefacto se confunde con señal.
+    wsum_raw = wsum.copy()
+    if normalize:
+        n_HI = n_HI / np.maximum(wsum, w_floor)
+        wsum = np.minimum(wsum / np.maximum(wsum, w_floor), 1.0)
+
+    # --- espacio de velocidades -------------------------------------------
+    dv = meta.box_kms / npix
+    v_hub = (np.arange(npix) + 0.5) * dv
+    u = v_hub + v_g
+    bth = doppler_b(T_g) / 1.0e5                           # km/s
+    a_damp = GAMMA_LYA * LAMBDA_LYA_CM / (4.0 * np.pi * bth * 1.0e5)
+
+    reach = (np.abs(v_g).max() + n_sigma * bth.max()) / dv
+    hw = int(min(np.ceil(reach), npix // 2))
+
+    tau = np.zeros(npix, dtype=np.float64)
+    pref = SIGMA_LYA_DV * dR / np.sqrt(np.pi)
+    for off in range(-hw, hw + 1):
+        j = (np.arange(npix) - off) % npix
+        dvel = v_hub - u[j]
+        dvel -= meta.box_kms * np.round(dvel / meta.box_kms)
+        tau += pref * n_HI[j] / (bth[j] * 1.0e5) * voigt_hjerting(
+            a_damp[j], dvel / bth[j], exact=exact_voigt)
+
+    if tau.min() < 0:
+        raise ValueError(
+            f"{los_name}: tau negativo (min = {tau.min():.4e}) pese a entradas "
+            "positivas. Reportalo, es un bug de la extraccion.")
+
+    diag = {
+        "normalized": bool(normalize),
+        "wsum_raw_med": float(np.median(wsum_raw)),
+        "wsum_raw_p10": float(np.percentile(wsum_raw, 10)),
+        "frac_below_floor": float((wsum_raw < w_floor).mean()),
+        "axis": axis, "ray_source": ray_src,
+        "max_b_over_H": float(ratio.max()),
+        "frac_b_gt_H": frac_bad,
+        "wsum_min": float(wsum.min()), "wsum_med": float(np.median(wsum)),
+        "wsum_max": float(wsum.max()),
+        "N_HI_total": float(n_HI.sum() * dR),
+        "npart": len(x_par), "band_halfwidth": hw,
+        "frac_delta_cut": frac_cut,
+    }
+    return tau, dv, diag
+
+
+def extract_all(path: str, npix: int, gamma_HI: float, max_los: int | None = None,
+                progress: bool = True, collect_diag: bool = False, **kwargs):
+    """Extrae tau para todas las LOS. Devuelve (tau[nlos,npix], dv, meta[, diags])."""
+    meta = open_los_file(path)
+    names = meta.los_names[:max_los] if max_los else meta.los_names
+    if not names:
+        raise ValueError(f"{path}: no hay grupos LOS_XXXX.")
+
+    out = np.empty((len(names), npix), dtype=np.float32)
+    diags, dv = [], None
+    for i, nm in enumerate(names):
+        t, dv, d = extract_tau(path, nm, npix, gamma_HI, meta=meta, **kwargs)
+        out[i] = t
+        if collect_diag:
+            diags.append(d)
+        if progress and (i % 100 == 0 or i == len(names) - 1):
+            print(f"  {i + 1}/{len(names)} lineas de visión", flush=True)
+    return (out, dv, meta, diags) if collect_diag else (out, dv, meta)
+
+
