@@ -101,3 +101,71 @@ def desi_window(z, resolution_ang=0.8):
     """
     R_z = C_KMS * resolution_ang / ((1.0 + z) * LAMBDA_LYA)
     return 1.0e-3, 0.5 * np.pi / R_z
+
+
+# --- linear growth ---------------------------------------------------------
+
+def _trapz(y, x):
+    return getattr(np, "trapezoid", np.trapz)(y, x)
+
+
+def growth_factor(z, cosmo=None, n=4096, a_min=1e-8):
+    """
+    Linear growth factor D(z), normalised to D(0) = 1.
+
+    Flat LCDM, matter + Lambda, the standard quadrature
+
+        D(a)  =  (5 Om / 2) E(a) int_0^a da' / (a' E(a'))^3
+
+    integrated in ln a, which is where the integrand is smooth.  No scipy:
+    this gets called once per redshift, not in a loop.
+
+    Why it is here: the Poisson isocurvature term of the FCT model is fixed
+    in comoving scale and grows as D^2(z), which is the one piece of the
+    redshift evolution that is calculable rather than calibrated.  Anything
+    that separates "what the growth factor already explains" from "what is
+    left" needs this.
+
+    Regression anchor: for Omega_m = 1 (Einstein-de Sitter) D(a) = a
+    exactly, so D(z=1) = 0.5.  tests/test_estimator.py checks that.
+    """
+    cosmo = cosmo or DEFAULT
+
+    def E(a):
+        return np.sqrt(cosmo.Om * a ** -3 + cosmo.OL)
+
+    def unnorm(a):
+        aa = np.geomspace(a_min, a, n)
+        # integrand of int da'/(a' E)^3 rewritten in ln a': da' = a' dln a',
+        # so the integrand is 1/(a'^2 E^3) and the abscissa is ln a'.
+        return (2.5 * cosmo.Om * E(a)
+                * _trapz(1.0 / (aa ** 2 * E(aa) ** 3), np.log(aa)))
+
+    a = 1.0 / (1.0 + np.asarray(z, dtype=np.float64))
+    d0 = unnorm(1.0)
+    if a.ndim == 0:
+        return float(unnorm(float(a)) / d0)
+    return np.array([unnorm(float(x)) for x in a]) / d0
+
+
+# --- a window that does not move with redshift -----------------------------
+
+def common_window(zs, resolution_ang=0.8):
+    """
+    The (k1, k2) intersection of the DESI windows of several redshifts.
+
+    `desi_window` returns a k_max that grows with z, because the resolution
+    in s/km improves as (1+z) rises.  Integrating P1D over that window bin
+    by bin means integrating over a DIFFERENT window in each bin, and the
+    "redshift evolution" that comes out then contains a purely instrumental
+    component.  Any integrated observable A(z) must use one fixed window for
+    every bin, and this is it.  Fixing it is five lines; not fixing it is a
+    referee report.
+    """
+    zs = np.atleast_1d(np.asarray(zs, dtype=np.float64))
+    lo = max(desi_window(float(z), resolution_ang)[0] for z in zs)
+    hi = min(desi_window(float(z), resolution_ang)[1] for z in zs)
+    if not hi > lo:
+        raise ValueError(f"no common window across z = {zs}: "
+                         f"k1 = {lo:.5g} >= k2 = {hi:.5g} s/km")
+    return lo, hi
