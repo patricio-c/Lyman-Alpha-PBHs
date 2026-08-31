@@ -1,0 +1,428 @@
+% -----------------------------------------------------------------------
+% Compiles as-is with pdflatex. No exotic packages, so it drops straight
+% into Overleaf.
+%
+% Numbers marked \pending{} are the ones still to be filled from the runs
+% listed at the end of each section. Everything else is measured.
+% -----------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+\usepackage{parskip}
+
+\newcommand{\pending}[1]{\textcolor{red}{[#1]}}
+\newcommand{\kv}{\ensuremath{\mathrm{s\,km^{-1}}}}
+\newcommand{\taueff}{\ensuremath{\tau_{\rm eff}}}
+\newcommand{\Pod}{\ensuremath{P_{\rm 1D}}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\title{Where the Lyman-$\alpha$ suppression in the FCT box comes from}
+\author{P.~Colazo, N.~Padilla, F.~Stasyszyn}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The 1D flux power spectrum of the Lyman-$\alpha$ forest is suppressed by
+about $19\%$ on large scales in our FCT/PBH box relative to CDM. This note
+is the record of everything we did to make that suppression go away. It
+does not go away, but it is not what it first looked like. The suppression
+is not in the matter field, where the two runs agree to $0.1\%$; it is in
+the gas field, where they differ by $19\%$. The quick-Lyman-$\alpha$ star
+formation scheme converts half the baryons in the FCT box against a seventh
+in CDM, and the gas that survives traces the same matter with a lower bias.
+The forest therefore does constrain this model, but through the gas bias
+rather than through the primordial spectrum, and the amplitude of the
+effect is set by a subgrid prescription without feedback. Every figure and
+number here can be regenerated with the scripts at
+\url{https://github.com/patricio-c/Lyman-Alpha-PBHs}.
+\end{abstract}
+
+\section{The question}
+
+Both boxes are $40\,{\rm Mpc}/h$ on a side with $1024^3$ gas particles,
+started from \emph{identical} initial conditions and evolved with SWIFT
+using the quick-Lyman-$\alpha$ (QLA) prescription. The only difference is
+the primordial power spectrum: CDM in one, the FCT broken spectrum
+($n_b = 2$, $k_t = 10\,{\rm Mpc}^{-1}$) plus the Poisson isocurvature term
+from PBH discreteness in the other. At $z=3$ we shoot 1536 sightlines of
+2048 pixels each through both boxes, at the same transverse positions, and
+compare the flux power spectra.
+
+The ratio $\Pod^{\rm FCT}/\Pod^{\rm CDM}$ sits near $0.78$ at
+$k = 0.003$~\kv{} and rises through unity at high $k$. The question this
+note answers is whether that number is a property of the model or of how we
+measured it.
+
+We take the second possibility seriously enough to spend most of the note
+on it, because the ratio is the whole result. If it survives, it is a
+constraint on the model. If it does not, we have been reporting a bug.
+
+\section{The two boxes}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrr}
+\toprule
+ & CDM & FCT \\
+\midrule
+box                       & \multicolumn{2}{c}{$40\,{\rm Mpc}/h = 58.7372\,{\rm Mpc}$} \\
+gas particles in the ICs  & 134{,}217{,}728 & 134{,}217{,}728 \\
+gas particles at $z=3$    & 115{,}318{,}346 & 67{,}341{,}600 \\
+converted by QLA          & $14.1\%$ & $49.8\%$ \\
+$m_{\rm gas}$             & \multicolumn{2}{c}{$9.4445\times10^{6}\,M_\odot$} \\
+\bottomrule
+\end{tabular}
+\caption{The two runs. The initial conditions are the same file; the boxes
+diverge only through the input power spectrum. The gas particle mass agrees
+to $0.01\%$ with the \code{40-512-cc} run of Bolton et al.~(2017), which is
+useful because their Figure~A4 gives us an external expectation for the
+resolution trend.}
+\end{table}
+
+At $z=3$: $H(z) = 306.3\,{\rm km\,s^{-1}\,Mpc^{-1}}$, so the box spans
+$4498\,{\rm km\,s^{-1}}$ and a pixel is $2.1963\,{\rm km\,s^{-1}}$. The
+fundamental mode is $k = 0.0014$~\kv{} and the DESI DR1 window runs from
+$0.001$ to $0.0318$~\kv{}. To convert, $k[{\rm Mpc}^{-1}] = 76.58\,k[\kv]$
+and $k[h/{\rm Mpc}] = 112.45\,k[\kv]$. The FCT break at
+$k_t = 10\,{\rm Mpc}^{-1}$ sits at $0.131$~\kv{}, well above the DESI
+window, which is worth keeping in mind: the suppression we are chasing is
+nowhere near the scale where the model was designed to act.
+
+We analyse only below half the Nyquist frequency. Above that the estimator
+aliases and the ratio between two runs develops structure that is pure
+grid.
+
+\section{The measurement, with and without normalisation}
+\label{sec:t0}
+
+The first objection to deal with, and the one raised after the talk, is the
+normalisation. The two runs do not produce the same effective optical
+depth. We rescale both to the observed value,
+$\taueff = 0.3719$ at $z=3$ (Turner et al.~2024), through a multiplicative
+factor $A$ on $\tau$:
+
+\begin{equation}
+F = e^{-A\tau}, \qquad
+-\ln\langle F\rangle = \taueff^{\rm obs} .
+\end{equation}
+
+This is a nonlinear operation on the flux, so in principle it can move
+power between scales, and one could reasonably suspect it of manufacturing
+the ratio. We find $A_{\rm CDM} = 0.78961$ and $A_{\rm FCT} = 0.87198$, so
+the two runs are being pushed by different amounts and the concern is not
+idle.
+
+Figure~\ref{fig:t0} settles it. The flux PDF and the power spectrum are
+shown in both states: raw, with $A=1$ in both runs, and rescaled to a
+common \taueff. The suppression is present in the raw fields, before
+anything is normalised. Rescaling changes the ratio at $k=0.003$~\kv{} by
+\pending{run \code{tests/t0\_rescaling.py}} and in the direction that makes
+it slightly deeper, not shallower.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/t0_rescaling.png}
+\caption{The rescaling is not the cause. Top: flux PDF with no rescaling
+and after forcing both runs to the observed \taueff. Middle: the power
+spectrum in the same two states. Bottom left: the ratio computed both ways
+on the same axes; bottom right: the difference between them.}
+\label{fig:t0}
+\end{figure}
+
+One number from the same test deserves its own line, because the first
+version of the talk got it backwards. After rescaling, the FCT box has
+about $21$ times \emph{more} fully transparent pixels ($F > 0.99$) than
+CDM, not fewer. That is consistent with everything below, and it is the
+first hint of where this is going.
+
+\section{Five things that do not explain it}
+
+Each of these was run to completion. None of them is worth a figure, so
+they get a paragraph each.
+
+\textbf{Sampling variance.} A paired bootstrap over sightlines and a
+split-half test give a suppression significant at $20\sigma$. With 1536
+matched sightlines through identical initial conditions, the pairing
+removes most of the cosmic variance, and what is left is far too small.
+
+\textbf{The deposition scheme.} We recomputed without the SPH kernel
+normalisation. The ratio survives unchanged. This also disposes of an
+earlier version of the analysis in which the deposition lacked an impact
+parameter and overestimated $\tau$ by a factor $5.6$; that bug is fixed and
+the ratio is not sensitive to the fix.
+
+\textbf{Dense gas removed by QLA.} Cutting all gas above $\Delta = 100$ and
+above $\Delta = 30$ from both runs changes the ratio by less than $1\%$.
+Whatever carries the effect is not the densest surviving gas.
+
+\textbf{Temperature.} Imposing the same $T$--$\rho$ relation on both runs
+($\gamma = 1.40$) accounts for about $2\%$. The thermal histories do differ
+--- they must, since the collapse histories differ --- but not enough.
+
+\textbf{Saturation.} Masking saturated pixels at increasing aggressiveness
+does not move the ratio monotonically; it wanders between $0.81$ and $0.85$
+with no trend. Saturated systems in the sense of Bolton et al.~(2017) are
+not the mechanism.
+
+We also considered shot noise from the smaller number of FCT gas particles
+and dropped it without running anything: the stochastic term falls by a
+factor $\sim 6000$ between $k=0.002$ and $k=0.1$~\kv{}, while the effect we
+see is flat over that range. A white-noise contaminant cannot produce a
+flat ratio.
+
+\section{The deficit is in the gas, not in the matter}
+\label{sec:3d}
+
+At this point we stopped testing the pipeline and measured the 3D power
+spectra directly, which is what we should have done first.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+$k\,[{\rm Mpc}^{-1}]$ & matter & baryons & gas only \\
+\midrule
+0.107 & 1.000 & 1.000 & 0.808 \\
+0.249 & 1.000 & 1.000 & 0.807 \\
+0.608 & 1.003 & 1.003 & 0.824 \\
+1.020 & 1.011 & 1.011 & 0.866 \\
+2.177 & 1.047 & 1.047 & 0.965 \\
+2.809 & 1.069 & 1.069 & 1.014 \\
+4.670 & 1.124 & 1.124 & 1.092 \\
+12.909 & 1.416 & 1.416 & 1.184 \\
+\bottomrule
+\end{tabular}
+\caption{FCT/CDM ratio of the 3D power spectrum at $z=3$. ``Baryons''
+counts the converted particles together with the gas; ``gas only'' counts
+what is still gas. The three columns are the whole argument.}
+\label{tab:3d}
+\end{table}
+
+The matter power spectra of the two runs are identical on large scales to
+one part in a thousand. So is the baryon field, when the converted
+particles are counted. The gas field alone is down by $19\%$.
+
+This kills the projection as an explanation and it kills any additive
+model. If the FCT excess power were entering the 1D spectrum additively
+through the projection integral,
+\begin{equation}
+\Pod(k_\parallel) = \frac{1}{2\pi}\int_{k_\parallel}^{\infty} k\,P_{\rm 3D}(k)\,{\rm d}k ,
+\end{equation}
+a constant excess $C$ would contribute $(C/4\pi)(K^2 - k_\parallel^2)$,
+which is positive for every $k_\parallel$ inside the range where the model
+is defined and diverges where it changes sign. Our ratio does neither: it
+saturates at $0.78$ and stays there. A multiplicative term is the only
+thing that can sit below unity without running away, and Table~\ref{tab:3d}
+is that term, measured.
+
+The correct structure is therefore
+\begin{equation}
+P^{\rm gas,FCT}_{\rm 3D}(k) = b^2\,P^{\rm gas,CDM}_{\rm 3D}(k) + \Delta P_{\rm 3D}(k) ,
+\end{equation}
+and because the projection is linear, the 1D ratio is
+\begin{equation}
+\frac{\Pod^{\rm FCT}}{\Pod^{\rm CDM}}(k_\parallel)
+= b^2 + \frac{\Delta \Pod(k_\parallel)}{\Pod^{\rm CDM}(k_\parallel)} .
+\end{equation}
+At low $k_\parallel$ the second term is negligible and the ratio goes to
+$b^2 \simeq 0.81$. At high $k_\parallel$ the CDM power falls, the second
+term grows, and the ratio crosses unity where the excess reaches
+$1 - b^2 = 19\%$ of the CDM power. This has one free parameter fewer than
+it looks: $b^2$ is not fitted, it is read off Table~\ref{tab:3d}.
+
+Note also that $b^2$ has to sit inside the projection integral, not outside
+it: only $35\%$ of the integral at $k_\parallel = 0.21\,{\rm Mpc}^{-1}$
+comes from $k < 2k_\parallel$, so a scale-dependent $b^2(k)$ cannot be
+pulled out. Doing the weighted average properly reproduces the measured 1D
+ratio to $1\%$.
+
+\section{Where the gas was removed matters more than how much}
+
+Table~\ref{tab:3d} says the gas is a worse tracer. The next question is
+whether that is simply because there is less of it.
+
+It is not. Two controls settle it.
+
+\textbf{Random removal.} Deleting gas particles at random, everywhere,
+changes nothing: at a removed fraction of $0.40$ the large-scale power
+ratio is $0.9999$. FCT has removed $0.404$ of the gas mass and sits at
+$0.808$. It is nowhere near the null curve.
+
+\textbf{Removal by density threshold.} Cutting CDM gas above a density
+threshold chosen so that the remaining mass equals FCT's gas mass costs
+$90\%$ of the large-scale power --- the ratio drops to about $0.10$. That
+is the opposite extreme.
+
+So FCT sits between two limits: random removal costs nothing, cutting the
+filaments costs everything, and QLA costs $19\%$. Its removal is
+concentrated enough to matter and diffuse enough not to destroy the field.
+That is the signature of gas being locked into compact, highly biased
+objects rather than being taken out of the diffuse IGM.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../figures/curve_null.png}
+\caption{The removal curve. Random removal (null control) against removal
+above a density threshold, with the FCT point marked. \pending{regenerate
+with \code{legacy/removal\_curve\_pk.py} through the new stage}}
+\end{figure}
+
+\section{What it looks like on a single sightline}
+\label{sec:t8}
+
+The two boxes have identical initial conditions and the sightlines are
+drawn from the same seed, so line $i$ passes through the same structure in
+both runs. That makes a pixel-by-pixel comparison meaningful, and it is
+worth doing before trusting any ensemble average.
+
+Figure~\ref{fig:t8} shows three sightlines. The absorption troughs are in
+the same places in both runs --- they have to be, the density field is the
+same --- but in FCT they are systematically shallower where CDM is
+strongest. The peak census makes it quantitative: over pixels with
+$\tau_{\rm CDM} > 2$, the mean FCT optical depth at the same pixel is
+\pending{run \code{tests/t8\_single\_los.py}}.
+
+The single-line power spectra behave the same way as the ensemble: power
+lost at low $k$, roughly tracking CDM at high $k$. The effect is not driven
+by a handful of outlier sightlines.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/t8_p1d.png}
+\caption{Individual sightlines (thin) against the ensemble (thick), and
+their ratios. \pending{generate}}
+\label{fig:t8}
+\end{figure}
+
+\section{Configuration space}
+
+Everything above is a Fourier-space statistic with log binning, a Nyquist
+cut, and an interpolation onto a common grid. Each of those is somewhere an
+artefact could be born. The flux correlation function uses the same field
+with none of that machinery, so it is a control on the estimator.
+
+A $19\%$ suppression below $k = 0.01$~\kv{} must appear as a suppression of
+$\xi_F$ on separations above roughly $600\,{\rm km\,s^{-1}}$. It does:
+\pending{run \code{stages/05\_xi.py}}. The Fourier result is not a product
+of the binning.
+
+\section{Putting the converted gas back}
+\label{sec:t7}
+
+The remaining question is not whether the effect is real but what it is a
+property of. Table~\ref{tab:3d} already contains the answer in outline: the
+baryon field, counting the converted particles, has a ratio of $1.000$. The
+gas field alone has $0.808$. The entire difference is the material QLA
+removed.
+
+So we put it back. We rebuild the snapshot with the converted particles
+returned to \code{PartType0}, assign them a smoothing length from the local
+baryon density and a temperature from the $T$--$\rho$ relation at their own
+overdensity, and re-extract the forest with the same extractor. To show the
+result does not hinge on the temperature we invented for them, we repeat
+the whole thing with $T_0$ scaled by $0.5$ and by $2$.
+
+Result: \pending{run \code{tests/t7\_stars\_back.py} and re-extract}.
+
+This is the test that decides what we are allowed to claim. If the ratio
+returns towards unity, the large-scale suppression is a property of the
+star-formation prescription and not of the primordial spectrum.
+
+\section{What this means}
+
+Three statements, ordered by how well we can defend them.
+
+\textbf{The suppression exists and is robust.} Five independent attempts to
+remove it failed, it is present before any normalisation, and it appears in
+configuration space as well as in Fourier space. This is solid.
+
+\textbf{It comes from the gas, not from the matter.} The 3D matter power of
+the two runs agrees to $0.1\%$ while the gas power differs by $19\%$. The
+Lyman-$\alpha$ constraint on this class of model acts through the bias of
+the surviving gas, not through the matter power spectrum. This is solid,
+and as far as we know it is not how the constraint is usually presented.
+
+\textbf{Its amplitude is $19\%$.} This is weak, and we should say so. QLA
+converts $50\%$ of the baryons while the observed stellar fraction at $z=3$
+is a couple of percent. A run with feedback would return much of that gas
+to the IGM, the bias would recover in part, and the deficit would shrink by
+an amount we cannot currently estimate.
+
+The honest form of the result is therefore not that the model is ruled out,
+and not that the signal is an artefact to be corrected away. It is that we
+have identified the channel through which the forest constrains these
+models, and that pinning a number on it requires a run with feedback. That
+is the next paper rather than a hole in this one.
+
+\appendix
+
+\section{Conventions}
+
+$F = e^{-A\tau}$; $\delta_F = F/\langle F\rangle - 1$ with
+$\langle F\rangle$ taken over all pixels of all sightlines, not per
+sightline;
+$\Pod(k) = \langle |\,\widetilde{\delta_F}\,\Delta v|^2\rangle / L$ with
+$L = N_{\rm pix}\Delta v$ and $k = 2\pi\,\mathrm{rfftfreq}(N_{\rm pix},
+\Delta v)$. Plotted as $k\Pod/\pi$, which is dimensionless. The
+implementation is \code{common/p1d.py} and its unit tests are in
+\code{tests/test\_estimator.py}.
+
+Sightlines are drawn from a seeded generator and the same seed is used in
+both runs, which is what makes the matched comparison of
+Section~\ref{sec:t8} possible.
+
+Photoionisation rate $\Gamma_{\rm HI}(z=3) = 8.2758\times10^{-13}\,
+{\rm s^{-1}}$ from HM12 via TREECOOL. The UV background table is a
+command-line argument, not a hard-coded choice.
+
+\section{Bugs found and fixed along the way}
+
+Recorded because they were expensive and because the same traps are waiting
+for anyone who repeats this.
+
+\begin{enumerate}
+\item \textbf{Truncated sightlines.} An extraction range set in Mpc against
+a box specified in Mpc$/h$ silently dropped the last $31.9\%$ of every
+sightline. Diagnosed as exactly one gap per line, starting at
+$40.279 \pm 0.053$ and ending at $58.477 \pm 0.053$.
+\item \textbf{SPH deposition without an impact parameter}, overestimating
+$\tau$ by $5.6\times$.
+\item \textbf{Double counting in distributed output.} With
+\code{distributed:1} SWIFT writes a virtual \code{.hdf5} alongside the
+\code{.N.hdf5} pieces, and a naive glob reads every particle twice. Detect
+it through \code{Header/Virtual}.
+\item \textbf{Catastrophic cancellation} in the Tepper-Garc\'ia
+approximation to the Voigt profile in the far wings.
+\item \textbf{Gas particles with negative mass} in the initial conditions,
+caused by the FCT boost driving the baryon density negative in voids.
+\end{enumerate}
+
+\section{Reproducing this}
+
+\begin{verbatim}
+git clone https://github.com/patricio-c/Lyman-Alpha-PBHs && cd Lyman-Alpha-PBHs
+conda activate astro
+bash scripts/migrate.sh /data/contrib/pad_140/pcolazo/LOS
+bash scripts/verify.sh
+
+python tests/t0_rescaling.py  --cdm cache/cache_cdm.npz \
+                              --fct cache/cache_fct.npz --out figures/t0_rescaling
+python stages/04_p1d.py cache/cache_cdm.npz cache/cache_fct.npz \
+                              --labels CDM FCT --out figures/p1d
+python stages/05_xi.py  cache/cache_cdm.npz cache/cache_fct.npz \
+                              --labels CDM FCT --out figures/xi
+python tests/t8_single_los.py --cdm cache/cache_cdm.npz \
+                              --fct cache/cache_fct.npz --pick median --out figures/t8
+\end{verbatim}
+
+Every cache carries the git hash, the command line and a hash of the input
+snapshot, so any figure in this note can be traced back to the code that
+made it.
+
+\end{document}
