@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+figures/*.png
+figures/*.pdf
+cache/*.npz
+data/*.hdf5
+*.err
+*.out
+paper/*.aux
+paper/*.log
+paper/*.pdf
+paper/*.out
