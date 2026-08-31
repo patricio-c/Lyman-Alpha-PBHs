@@ -32,6 +32,34 @@ into the numbered sections below only for the *why* behind something.
   gained `growth_factor(z)` and `common_window(zs)`.
   `tests/test_estimator.py` now covers all of it and passes. It needs no
   data and takes a second — run it before anything else.
+- Validation tooling added 2026-08-31: `tests/t12_relos_roundtrip.py` and
+  `scripts/make_los_subset.py`. See "the validation phase" below, which is
+  what the project is actually doing right now.
+
+**THE VALIDATION PHASE — this is what is happening now.**
+
+Pato's call, 2026-08-31, and it governs the order of everything below:
+nothing new gets built until the existing chain is checked against
+something independent. He is deliberately not reading the analysis code
+yet; he is asking for figures and verdicts, and will read the code once
+the results come out right. So the job is to produce results that are
+checkable without reading the code, and to say plainly what each one
+would look like if it were broken.
+
+Three legs, run in parallel:
+
+  V1. **Do we control the sightlines?** `relos.py` must reproduce a LOS
+      file SWIFT wrote itself, particle for particle, from the snapshot at
+      the same redshift. `tests/t12_relos_roundtrip.py` is the check.
+      Requires a run whose LOS output was written correctly on the fly —
+      NOT the 40 Mpc/h originals, see the facts below. Gates t7.
+  V2. **Is tau right?** Our extractor against SpectWizard on the same 100
+      sightlines. `scripts/make_los_subset.py` cuts the file to send Maria.
+      This is HANDOFF open question 5 and it is the only external check in
+      the whole project. Gates every quoted number.
+  V3. **Is the deficit real?** Finish the tests already designed: t0,
+      stage 04, stage 05, t9, t10. These run on existing caches in minutes
+      and need nothing from V1 or V2.
 
 **Pending, in order:**
 1. **Extract LOS caches at more redshifts.** Queue job. This blocks
@@ -105,6 +133,19 @@ into the numbered sections below only for the *why* behind something.
   a pairing was supposed to cancel is a property of the region, not of the
   line, so deleting the same tile from both runs cancels it without any
   sightline being matched.
+- **Validate before producing.** The chain from snapshot to P1D has three
+  links: SWIFT's LOS output, our regeneration of it, and our tau. Only the
+  first is somebody else's code. V1 and V2 above pin the other two against
+  an independent implementation, and until they are done a new result only
+  adds to the pile of things that would have to be redone. V3 runs in
+  parallel because it costs minutes and depends on neither.
+- **Lead with results, not code.** Pato is working as a supervisor on this
+  repository: he has not read the analysis code and will not until the
+  results validate, at which point he will read it properly to check the
+  reasoning. Give him verdicts, figures, and what would falsify them.
+  Batch the commands so one console dump answers several questions. When a
+  stage passes, tell him which files he now has to read and which he can
+  keep treating as machinery.
 - **The objectives document lives outside this repository, deliberately.**
   Ask Pato where. It is not in `.gitignore` yet — decide that before it is
   ever committed, because a file that reaches a public repo stays in the
@@ -132,6 +173,25 @@ into the numbered sections below only for the *why* behind something.
   sigma is anywhere in circulating talk material, flag it for correction —
   but send one mail with the corrected number after `t9`, not a "we might
   be wrong" mail now.
+- **`relos.py`'s own docstring probably explains the pairing failure, and
+  it is one command to check.** It says the original `los_*.hdf5` were
+  written with `range_when_shooting_down_* = [0, 40]` in a 58.7372 box, so
+  each sightline is missing ~32% of its particles AND the rays only sample
+  46% of the transverse face. It has a `--uniform N --seed S` flag that
+  throws away the old rays and draws new ones over the whole box. If one
+  run's file was regenerated with `--uniform` and the other was not, or
+  with a different seed, the positions are independent draws — exactly what
+  stage 02 measured. Run `tests/t12_relos_roundtrip.py --a FILE` on both
+  files and read the ray-position range: if one spans [0, 40] and the other
+  [0, 58.74], that is the answer, and it also means the two runs did not
+  sample the same sub-volume.
+- **Do not validate `relos.py` against the 40 Mpc/h originals.** Those files
+  are themselves relos.py output (they were regenerated after the
+  truncation bug), so the comparison is circular; and the pre-regeneration
+  originals fail by construction because they are truncated. V1 needs a run
+  with correct on-the-fly SWIFT LOS output. The 15 new runs are described
+  as having exactly that, and `lyman/murgia/*` is the other candidate.
+  Check the ray-position range of any candidate first — t12 prints it.
 - **6144 or 1536 sightlines is still open, and it matters more than the
   pairing.** The files hold 6144, the published numbers say 1536. That is a
   factor 2 in any quoted sigma, larger than anything the pairing does.
