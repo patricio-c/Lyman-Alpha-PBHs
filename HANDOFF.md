@@ -10,6 +10,59 @@ the cluster is remote.
 
 ---
 
+## 0. Current status — read this first, every session
+
+Updated 2026-08-31. This section is the fast-changing punch list; the rest
+of the file is stable background. Start every new session here, and dip
+into the numbered sections below only for the *why* behind something.
+
+**Done:**
+- Repo scaffolding (`common/`, `stages/`, `tests/`, `scripts/`, `paper/`,
+  docs) pushed to `https://github.com/patricio-c/Lyman-Alpha-PBHs` (public).
+  `legacy/` is still empty on GitHub — nothing has been migrated yet.
+- Repo cloned onto Clementina (`snmgt01`) over SSH through the cluster
+  proxy (see section 6). Not yet migrated.
+- Local sanity check passed: `python -m compileall` compiles clean.
+  `tests/test_estimator.py` was not run on the laptop (no `scipy` in that
+  env) — run it on Clementina instead, where `conda activate astro` has it.
+
+**Pending, in order:**
+1. On Clementina, inside the clone: `bash scripts/migrate.sh
+   /data/contrib/pad_140/pcolazo/LOS`, then `bash scripts/verify.sh`. Only
+   delete the old `LOS/` directory after `VERIFY OK` and a push. (The
+   filename mismatch `cocientre_cdm_fct.py` vs the script's expected
+   `cociente_cdm_fct.py` was fixed by renaming the file on Clementina.)
+2. Steps 3-6 of section 5 below (the two gating checks, the analysis, t7,
+   the paper) are unchanged and still pending.
+3. Two more datasets to fold in once the CDM/FCT pair is done — see the
+   new facts below and section 4:
+   - 15 additional runs, already extracted with correct on-the-fly LOS
+     output (per Pato). Their ICs were made *without* monofonIC's
+     `masked=2`, so treat them like the `more_power` case for `t7`, not
+     like the original pair — see below.
+   - `lyman/murgia/{cdm,M2,M3}` — a different snapshot/LOS grid (3
+     snapshots, 7 LOS files, not the usual 5/17). Redshifts have not been
+     checked; do not assume `los_000N` lines up with any particular z.
+
+**Non-obvious facts learned this session:**
+- **Mass-separability of the converted gas is per-run, not fixed.** The
+  original 40 Mpc/h CDM/FCT pair used monofonIC's `masked=2` for the ICs,
+  so DM and the QLA-converted gas end up with different particle masses in
+  `PartType1` — the "easy" case `stages/00_inspect_snapshot.py --deep`
+  detects automatically. The `more_power` batch was generated *without*
+  the mask, so DM and baryons share a mass there — the "hard" case that
+  needs `PartType4` or `--conv-from-ids`. The 15 new runs were also made
+  without the mask, so treat them as the hard case by default; run stage
+  00 `--deep` on each one and read the verdict rather than assuming.
+- **Clementina has no direct outbound internet.** All SSH traffic,
+  including git, has to go through the cluster's HTTP proxy
+  (`172.28.3.3:3128`). See section 6 for the exact `~/.ssh/config` entry
+  and the GitHub SSH-key setup. This is the flow that actually works on
+  Clementina; the plain HTTPS+token clone in Step 2 below is for the
+  laptop, not the cluster.
+
+---
+
 ## 1. What this is about, scientifically
 
 Two cosmological simulations, run with SWIFT, from **identical initial
@@ -176,6 +229,14 @@ Facts worth having in mind:
 - Each LOS file has **6144** sightlines. Earlier analysis used 1536, so
   either `max_los` was set or only a subset was processed. Worth resolving
   before quoting error bars.
+- `lyman/murgia/{cdm,M2,M3}` is a separate batch (Murgia's simulations),
+  not in the `common/runs.py` registry yet. `run_dir()` accepts a raw
+  directory path, so `--run /data/contrib/pad_140/pcolazo/lyman/murgia/cdm`
+  works without touching the code; add registry entries only if short
+  names are wanted. It has only 3 snapshot outputs and 7 LOS files, a
+  different grid from the main pair — run `stages/01_extract_los.py --run
+  <path>` with no `--z` first to list what redshifts actually exist before
+  assuming any file is z=3.
 
 Environment on the cluster: `conda activate astro`.
 
@@ -207,14 +268,21 @@ Public repository — it is meant to be linked from the paper.
 
 ### Step 2 — on Clementina: clone and migrate
 
+Clementina has no direct outbound internet; git has to go through the
+cluster's SSH proxy. Set up `~/.ssh/config` and the GitHub SSH key first
+(section 6), then:
+
 ```bash
 ssh snmgt01
 cd /data/contrib/pad_140/pcolazo
-git clone https://github.com/patricio-c/Lyman-Alpha-PBHs.git lya-repro
+git clone git@github.com:patricio-c/Lyman-Alpha-PBHs.git lya-repro
 cd lya-repro && conda activate astro
 bash scripts/migrate.sh /data/contrib/pad_140/pcolazo/LOS
 bash scripts/verify.sh
 ```
+
+(This was already done: the repo is cloned on Clementina, not yet
+migrated.)
 
 `migrate.sh` **copies and deletes nothing.** It brings his working scripts
 into `legacy/`, the pre-patch `.bak_delta` / `.bak_trho` files into
@@ -359,6 +427,36 @@ Classic tokens are coarser. If you want the CLI to create the repo for you:
 | `delete_repo` | **no.** Never. There is no reason to grant it |
 | `admin:org`, `gist`, `user`, `notifications`, everything else | no |
 
+### On Clementina specifically: git over SSH through the proxy
+
+The cluster has no direct outbound internet — every outbound SSH connection
+goes through an HTTP proxy at `172.28.3.3:3128`. Add to `~/.ssh/config`
+(create the file if it does not exist; `chmod 700 ~/.ssh`, `chmod 600` the
+key):
+
+```
+Host github.com
+   User git
+   IdentityFile ~/.ssh/id_ecdsa
+   ProxyCommand ncat --proxy 172.28.3.3:3128 --proxy-type http %h %p
+```
+
+Then generate a key on Clementina if you do not already have one
+(`ssh-keygen -t ecdsa`), copy `~/.ssh/id_ecdsa.pub`, and add it at
+github.com -> Settings -> SSH and GPG keys -> New SSH key. Test before
+cloning: `ssh -T git@github.com` should answer "Hi patricio-c! You've
+successfully authenticated...". `Permission denied (publickey)` at this
+step means the public key was never added on the GitHub side, not a proxy
+problem. Clone with the SSH form, not HTTPS:
+
+```bash
+git clone git@github.com:patricio-c/Lyman-Alpha-PBHs.git
+```
+
+This is untested for the HTTPS+token flow above — the docs at
+`docs.clementinaxxi.org.ar` only confirm the SSH route through the proxy,
+so use SSH on the cluster and HTTPS+token on the laptop.
+
 ### Storing it
 
 ```bash
@@ -422,3 +520,52 @@ without a local clone.
 - A geometry number disagrees with section 5 → **stop.** That is exactly the
   class of bug this repository exists to catch. A units mismatch between Mpc
   and Mpc/h once silently truncated 31.9% of every sightline and cost weeks.
+
+---
+
+## 9. Two clones, one remote — the sync flow
+
+There are two working copies: the laptop (where code gets written and
+pushed via the GitHub MCP, no local git needed there) and Clementina
+(`/data/contrib/pad_140/pcolazo/lya-repro`, where the actual extraction and
+analysis run, cloned over SSH as in section 6). Both point at the same
+`https://github.com/patricio-c/Lyman-Alpha-PBHs` remote. Ordinary
+distributed-git discipline applies, nothing special:
+
+- Whoever is about to edit code, `git pull` first (or, on the laptop side,
+  just re-read the file before editing — the MCP push always goes straight
+  to `main`).
+- Small, logical commits beat one giant one, same as any repo.
+- `cache/*.npz` and `data/*.hdf5` are gitignored on purpose — caches made on
+  Clementina do not travel to the laptop and do not need to. Only code,
+  docs and `paper/` cross the wire.
+- If both sides edit the same file in the same window, it is a normal merge
+  conflict, resolved normally. It has not happened yet because the split
+  so far is clean: code from the laptop, `legacy/` and caches from
+  Clementina.
+
+## 10. Working across Claude sessions
+
+This file is written so that a new Claude session can pick up the project
+cold: read section 0 for what is done and what is next, and the rest for
+context as needed. The convention going forward:
+
+- **At the end of a session that changed something real** (migrated code,
+  ran a gating check, resolved an open question), update section 0 before
+  closing: move finished items out of "Pending," add anything genuinely
+  new to "Non-obvious facts," and update the date. Keep the rest of the
+  file mostly stable — it is background, not a log, and does not need to
+  be rewritten each time.
+- **A new session** starts by reading this file (from the GitHub repo or
+  the local clone, either is fine, but push/pull first if unsure which is
+  current) and treats section 0 as the actual task list. No separate
+  scratch/TODO file is needed for this repo specifically — the overhead of
+  keeping a second file in sync with this one is worse than the cost of
+  section 0 being slightly denser than a pure TODO would be. If a task
+  genuinely does not belong in a project handoff (something ephemeral,
+  laptop-only, unrelated to the science) it does not need to go here at
+  all.
+- Do not let section 0 silently drift out of sync with what actually
+  happened — if you are not sure whether the previous session finished
+  something, check the repo state (`git log`, does the file exist, does
+  the test pass) rather than trusting a stale bullet point.
