@@ -1,0 +1,20 @@
+======================================================================
+Stage 05 - flux correlation function    norm = taueff
+======================================================================
+z = 3.000   dv = 2.19625 km/s   rmax = 2249.0 km/s
+
+CDM        A = 0.78950   xi(0) = 0.21793   xi(100) = 0.05551   xi(600) = 0.00309
+FCT        A = 0.87187   xi(0) = 0.20781   xi(100) = 0.03522   xi(600) = 0.00015
+
+ dv [km/s]        FCT/CDM
+        50         0.8238
+       100         0.6345
+       200         0.5238
+       400         0.4382
+       600         0.0488
+      1000         1.6129
+      1500         0.7984
+
+Read this against the P1D: a suppression over k < 0.01 s/km has to
+show up on separations above ~600 km/s. If it does, the Fourier
+result is not a product of the binning.

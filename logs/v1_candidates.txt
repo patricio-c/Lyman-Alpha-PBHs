@@ -1,0 +1,15 @@
+2.0000000000000018	/data/contrib/pad_140/pcolazo/lyman/2-fct-box-40-1024/los_0015.hdf5	/data/contrib/pad_140/pcolazo/lyman/2-fct-box-40-1024
+2.999999999999999	/data/contrib/pad_140/pcolazo/lyman/2-fct-box-40-1024/los_0010.hdf5	/data/contrib/pad_140/pcolazo/lyman/2-fct-box-40-1024
+5.0	/data/contrib/pad_140/pcolazo/lyman/2-fct-box-40-1024/los_0000.hdf5	/data/contrib/pad_140/pcolazo/lyman/2-fct-box-40-1024
+2.0000000000000018	/data/contrib/pad_140/pcolazo/lyman/cdm-box-40-1024/los_0015.hdf5	/data/contrib/pad_140/pcolazo/lyman/cdm-box-40-1024
+2.999999999999999	/data/contrib/pad_140/pcolazo/lyman/cdm-box-40-1024/los_0010.hdf5	/data/contrib/pad_140/pcolazo/lyman/cdm-box-40-1024
+5.0	/data/contrib/pad_140/pcolazo/lyman/cdm-box-40-1024/los_0000.hdf5	/data/contrib/pad_140/pcolazo/lyman/cdm-box-40-1024
+2.0000000000000018	/data/contrib/pad_140/pcolazo/lyman/cdm-box-80-1024/los_0015.hdf5	/data/contrib/pad_140/pcolazo/lyman/cdm-box-80-1024
+2.999999999999999	/data/contrib/pad_140/pcolazo/lyman/cdm-box-80-1024/los_0010.hdf5	/data/contrib/pad_140/pcolazo/lyman/cdm-box-80-1024
+5.0	/data/contrib/pad_140/pcolazo/lyman/cdm-box-80-1024/los_0000.hdf5	/data/contrib/pad_140/pcolazo/lyman/cdm-box-80-1024
+2.0000000000000018	/data/contrib/pad_140/pcolazo/lyman/fct-box-80-1024/los_0015.hdf5	/data/contrib/pad_140/pcolazo/lyman/fct-box-80-1024
+2.999999999999999	/data/contrib/pad_140/pcolazo/lyman/fct-box-80-1024/los_0010.hdf5	/data/contrib/pad_140/pcolazo/lyman/fct-box-80-1024
+5.0	/data/contrib/pad_140/pcolazo/lyman/fct-box-80-1024/los_0000.hdf5	/data/contrib/pad_140/pcolazo/lyman/fct-box-80-1024
+5.000000000000004	/data/contrib/pad_140/pcolazo/lyman/murgia/M2/los_0003.hdf5	/data/contrib/pad_140/pcolazo/lyman/murgia/M2
+5.000000000000004	/data/contrib/pad_140/pcolazo/lyman/murgia/M3/los_0003.hdf5	/data/contrib/pad_140/pcolazo/lyman/murgia/M3
+5.000000000000004	/data/contrib/pad_140/pcolazo/lyman/murgia/cdm/los_0003.hdf5	/data/contrib/pad_140/pcolazo/lyman/murgia/cdm

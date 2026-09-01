@@ -106,7 +106,7 @@ def desi_window(z, resolution_ang=0.8):
 # --- linear growth ---------------------------------------------------------
 
 def _trapz(y, x):
-    return getattr(np, "trapezoid", np.trapz)(y, x)
+    return (np.trapezoid if hasattr(np, "trapezoid") else np.trapz)(y, x)
 
 
 def growth_factor(z, cosmo=None, n=4096, a_min=1e-8):

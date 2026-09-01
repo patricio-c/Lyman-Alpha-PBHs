@@ -1,0 +1,46 @@
+========================================================================
+T9 - significance of the P1D suppression with no sightline pairing
+========================================================================
+z = 3.0000   dv = 2.19625 km/s
+CDM  1536 LOS x 2048 px   cache/cache_cdm.npz
+FCT  1536 LOS x 2048 px   cache/cache_fct.npz
+
+--- mean flux ----------------------------------------------------------
+  target tau_eff  0.371871
+  CDM   A = 0.789497   tau_eff = 0.371871   Fbar = 0.689443
+  FCT   A = 0.871869   tau_eff = 0.371871   Fbar = 0.689443
+  Fbar mismatch   1.401e-14
+
+  estimator cross-check against common/p1d.py: max deviation 3.73e-11
+
+--- the statistic ------------------------------------------------------
+  band            0 < k < 0.01 s/km   (7 Fourier modes)
+  k[s/km] -> k[h/Mpc]  x 112.4553
+  R_band = P1D(FCT)/P1D(CDM) = 0.828503
+  suppression = 17.150%
+
+[!] BLOCK JACKKNIFE SKIPPED - no sightline positions given.
+    Everything above resamples individual lines, which assumes
+    they are independent. They are not. Pass --los-a/--los-b.
+
+--- significance of R_band != 1 -----------------------------------------
+method                             sigma(R)  significance
+analytic (std/sqrt N)              0.011942         14.4s
+bootstrap, common index            0.005782         29.7s
+bootstrap, unpaired                0.015488         11.1s
+
+--- did the broken pairing matter? --------------------------------------
+  sigma(common index) / sigma(unpaired) = 0.3733
+  correlation between the two runs' band powers under a
+  common index draw: +0.8592
+  VERDICT: they differ. The common-index draw is not
+  equivalent to the unpaired one here, so the previously
+  quoted number does change. Use the unpaired or, better,
+  the block jackknife.
+
+--- whole-band test against R(k) = 1 ------------------------------------
+  chi2 = 756.8 for 19 bins   p = 3.263e-148
+  bootstrap covariance, 4000 draws, Hartlap factor 0.9950
+  this is the curve, not the band average, and it uses errors from
+  resampled lines, so it is an upper bound on the evidence.
+

@@ -1,0 +1,32 @@
+======================================================================
+T0 - does the tau_eff rescaling create the suppression?
+======================================================================
+z = 3.000   dv = 2.19625 km/s   1536 LOS x 2048 px
+common target tau_eff = 0.37187  (Turner+24)
+
+run     tau_eff raw  A(common)   <F> raw
+CDM         0.42461    0.78950   0.65403
+FCT         0.40350    0.87187   0.66798
+
+The two runs do NOT start from the same tau_eff, which is exactly
+why the objection is worth testing. A(FCT)/A(CDM) = 1.1043.
+
+state      run       F>0.99     F<0.01      <F>
+raw        CDM      0.0187%    8.0679%  0.65403
+raw        FCT      1.5927%    5.6287%  0.66798
+rescaled   CDM      0.1018%    6.5860%  0.68944
+rescaled   FCT      2.1520%    4.9192%  0.68944
+-> after rescaling, FCT has 21.1x more transparent pixels (F>0.99) than CDM.
+
+  k [s/km]     r raw  r rescaled  difference
+    0.0030    0.7338      0.7797     +0.0459
+    0.0050    0.7939      0.8407     +0.0469
+    0.0100    0.8749      0.9213     +0.0464
+    0.0200    0.9945      1.0379     +0.0434
+    0.0300    1.0731      1.1150     +0.0419
+
+VERDICT
+  The suppression is present with NO rescaling at all: r(0.003) = 0.734.
+  Rescaling both runs to a common tau_eff moves it to 0.780, a change of
+  +4.6 percentage points. The rescaling is not the cause;
+  it is a second-order correction on top of an effect that is already there.
