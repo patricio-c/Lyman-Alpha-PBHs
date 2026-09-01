@@ -105,18 +105,32 @@ def read_rays(old_los_path: str):
 
 
 def make_uniform_rays(n_per_axis: int, box: float, seed: int):
-    """Rayos nuevos uniformes sobre toda la cara de la caja, n por eje."""
+    """
+    Rayos nuevos uniformes sobre toda la cara de la caja, n por eje.
+
+    Los atributos de grupo replican los que escribe SWIFT, no solo Xpos/Ypos:
+    Zaxis es el eje de INTEGRACION y Xaxis/Yaxis son los dos transversales en
+    orden creciente de indice, que son a los que se refieren Xpos e Ypos.
+    spectWizard los exige y aborta sin ellos; nuestro propio extractor no los
+    usa (lee Xpos/Ypos), asi que agregarlos no cambia ningun tau.
+
+    El sorteo NO se toca: rng.uniform sigue siendo la unica llamada al
+    generador y en el mismo orden, asi que --uniform N --seed S devuelve
+    exactamente las mismas posiciones que antes de este cambio.
+    """
     rng = np.random.default_rng(seed)
     rays, gattrs, i = [], {}, 0
     for axis in range(3):
+        tr = [j for j in range(3) if j != axis]
         for _ in range(n_per_axis):
             nm = f"LOS_{i:04d}"
             pos = rng.uniform(0.0, box, size=2)
             rays.append((nm, axis, pos))
-            # mismos nombres de atributo que escribe SWIFT, para que la
-            # extraccion lea el rayo en vez de estimarlo
-            gattrs[nm] = {"Xpos": np.array([pos[0]]),
-                          "Ypos": np.array([pos[1]])}
+            gattrs[nm] = {"Xaxis": np.array([tr[0]], dtype=np.int32),
+                          "Xpos": np.array([pos[0]]),
+                          "Yaxis": np.array([tr[1]], dtype=np.int32),
+                          "Ypos": np.array([pos[1]]),
+                          "Zaxis": np.array([axis], dtype=np.int32)}
             i += 1
     return rays, gattrs
 
@@ -272,6 +286,18 @@ def write_output(out_path, snap0_path, old_los_path, rays, gattrs, store,
                 g.attrs[k] = v
             n_i = len(store[i][fields[0]])
             counts.append(n_i)
+            # NumParts describe ESTE archivo. Por el camino que reusa los
+            # rayos viejos se copia del LOS original y queda con el conteo
+            # del original, que no es el que acabamos de escribir; por el
+            # camino --uniform directamente no existe. Se fija siempre.
+            g.attrs["NumParts"] = np.array([n_i], dtype=np.int32)
+            # Y si el LOS viejo no traia los ejes, se completan: sin ellos
+            # spectWizard no sabe a lo largo de que eje corre la linea.
+            if "Zaxis" not in g.attrs:
+                tr = [j for j in range(3) if j != axis]
+                g.attrs["Xaxis"] = np.array([tr[0]], dtype=np.int32)
+                g.attrs["Yaxis"] = np.array([tr[1]], dtype=np.int32)
+                g.attrs["Zaxis"] = np.array([axis], dtype=np.int32)
             for fld in fields:
                 arr = np.asarray(store[i][fld])
                 d = g.create_dataset(fld, data=arr)
