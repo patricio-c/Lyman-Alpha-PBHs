@@ -12,7 +12,7 @@ the cluster is remote.
 
 ## 0. Current status — read this first, every session
 
-Updated 2026-08-31. This section is the fast-changing punch list; the rest
+Updated 2026-09-01. This section is the fast-changing punch list; the rest
 of the file is stable background. Start every new session here, and dip
 into the numbered sections below only for the *why* behind something.
 
@@ -32,9 +32,11 @@ into the numbered sections below only for the *why* behind something.
   gained `growth_factor(z)` and `common_window(zs)`.
   `tests/test_estimator.py` now covers all of it and passes. It needs no
   data and takes a second — run it before anything else.
-- Validation tooling added 2026-08-31: `tests/t12_relos_roundtrip.py` and
-  `scripts/make_los_subset.py`. See "the validation phase" below, which is
-  what the project is actually doing right now.
+- Validation tooling added 2026-08-31, corrected against the real disk
+  layout 2026-09-01: `tests/t12_relos_roundtrip.py`,
+  `scripts/make_los_subset.py`, `scripts/run_validation_A.sh` (block A, one
+  log) and `scripts/sbatch_roundtrip.sh` (V1, queue). See "the validation
+  phase" below, which is what the project is actually doing right now.
 
 **THE VALIDATION PHASE — this is what is happening now.**
 
@@ -48,11 +50,16 @@ would look like if it were broken.
 
 Three legs, run in parallel:
 
-  V1. **Do we control the sightlines?** `relos.py` must reproduce a LOS
-      file SWIFT wrote itself, particle for particle, from the snapshot at
-      the same redshift. `tests/t12_relos_roundtrip.py` is the check.
-      Requires a run whose LOS output was written correctly on the fly —
-      NOT the 40 Mpc/h originals, see the facts below. Gates t7.
+  V1. **Do we control the sightlines?** Our regeneration must reproduce a
+      LOS file SWIFT wrote itself, particle for particle, from the snapshot
+      at the same redshift. `tests/t12_relos_roundtrip.py` is the check.
+      Needs a run whose LOS output is not truncated, which rules out the
+      40 Mpc/h pair and points at murgia — see the facts below. Step 4 of
+      `scripts/run_validation_A.sh` finds the candidates and step 4b prints
+      each one's ray range so a truncated candidate is visible before the
+      queue time is spent on it. Run it through
+      `scripts/sbatch_roundtrip.sh <run dir> <z>`, which goes through
+      `legacy/relosz.py`. Gates t7.
   V2. **Is tau right?** Our extractor against SpectWizard on the same 100
       sightlines. `scripts/make_los_subset.py` cuts the file to send Maria.
       This is HANDOFF open question 5 and it is the only external check in
@@ -98,8 +105,11 @@ Three legs, run in parallel:
       Their ICs were made *without* monofonIC's `masked=2`, so treat them
       like the `more_power` case for `t7`, not like the original pair.
     - `lyman/murgia/{cdm,M2,M3}` — a different snapshot/LOS grid (3
-      snapshots, 7 LOS files, not the usual 5/17). Redshifts have not been
-      checked; do not assume `los_000N` lines up with any particular z.
+      snapshots, 7 LOS files, not the usual 5/17), and a different box:
+      29.52465 internal, not 58.7372. `murgia/cdm/los_0000.hdf5` is z=5.600,
+      measured. Do not assume any other `los_000N` lines up with a
+      particular z, and do not assume a LOS index matches a snapshot index —
+      step 4 of `run_validation_A.sh` reads them all.
 
 **Decisions taken 2026-08-31, and why:**
 - **Re-quote the significance before deciding whether to re-shoot the LOS.**
@@ -192,6 +202,58 @@ Three legs, run in parallel:
   with correct on-the-fly SWIFT LOS output. The 15 new runs are described
   as having exactly that, and `lyman/murgia/*` is the other candidate.
   Check the ray-position range of any candidate first — t12 prints it.
+- **The 40 Mpc/h production LOS files ARE truncated. Confirmed by Pato,
+  2026-09-01.** `los_0010.hdf5` in both `cdm-box-40-1024` and
+  `2-fct-box-40-1024` only holds data out to 40 Mpc instead of the full
+  58.7372, from the `h` mix-up. So they cannot serve as the reference for
+  V1 - relos.py would be asked to reproduce a file that is itself wrong.
+  They are still fine for V2: a code-vs-code comparison feeds both codes
+  the same input, and a truncated input is truncated identically for both.
+  Say so when handing the file over, so the other side does not read the
+  physics as broken when it is the input that is.
+  Note what this does NOT settle: if BOTH files are truncated the same way,
+  truncation does not explain the pairing failure and a different seed
+  does. Step 3 of `scripts/run_validation_A.sh` prints both ranges.
+- **Most runs keep their snapshots in a subdirectory, not beside the LOS
+  files.** `murgia/cdm` holds `los_000{0..6}.hdf5` next to directories
+  `murgia-cdm-lyman_000{0,1,2}/`, each containing that snapshot's virtual
+  file and pieces. Not all runs do this. Any glob written by hand will get
+  it wrong half the time, so do not write one: step 4 of
+  `run_validation_A.sh` reads the real layout and prints the exact,
+  ready-to-paste `sbatch` line for every candidate.
+- **`relosz.py` is the entry point; `relos.py` is the engine. Keep both.**
+  Pato does not call `relos.py` directly - he uses `relosz.py`, and so
+  should anything written from here on. They are not alternatives: relosz
+  is about forty lines that resolve the LOS file and the snapshot from a
+  run directory and a redshift, and then `subprocess` into relos.py, which
+  is the ~470 lines that actually walk the snapshot and select particles.
+  Deleting relos.py would delete the work. What relosz adds is exactly the
+  part that keeps getting written wrong by hand: it matches on the redshift
+  each file reports rather than on the index in its name, and it knows that
+  snapshots may live in their own subdirectory. Its one limitation is that
+  it looks for snapshots as DIRECTORIES, so on a run that stores them as
+  plain files beside the LOS files (the 40 Mpc/h pair) it reports "No hay
+  snapshot a z=..." and you fall back to relos.py with an explicit
+  `--snapshot` glob. `scripts/sbatch_roundtrip.sh` takes a run directory
+  and a redshift and goes through relosz.
+- **Snapshot and LOS indices do not correspond, in either direction.**
+  `los_0003` is not the epoch of `snap_0003`, and the offset is not even
+  consistent between runs. Nothing may match on an index. Match on the
+  redshift read out of each file, with a tolerance: relos.py refuses a
+  snapshot more than dz = 0.02 from the LOS file, so that is the threshold
+  worth proposing pairs at. Step 4 of `run_validation_A.sh` does this and
+  also prints the near misses, so "this run has no candidate" comes with
+  the reason attached.
+- **murgia is the clean run. Measured 2026-09-01, not assumed:**
+  `murgia/cdm/los_0000.hdf5` holds 1536 sightlines at z = 5.600 in a
+  29.52465 box, rays along all three axes, transverse coverage 99.8%, no
+  truncation warning, ParticleIDs present, 5779-8504 particles per
+  sightline. That is the V1 reference. Two things follow. The
+  ParticleIDs make t12's set comparison the strong version rather than the
+  coordinate fallback. And murgia uses 1536 sightlines, which is the same
+  number the published results quote - worth keeping in mind while
+  resolving the 6144-vs-1536 question, though it does not settle it, since
+  the published numbers are for the 40 Mpc/h pair and not for murgia.
 - **6144 or 1536 sightlines is still open, and it matters more than the
   pairing.** The files hold 6144, the published numbers say 1536. That is a
   factor 2 in any quoted sigma, larger than anything the pairing does.
@@ -325,7 +387,7 @@ these models, and pinning a number on it needs a run with feedback.
 ## 2. What is in this folder
 
 ```
-lya-repro/
+Lyman-Alpha-PBHs/
   README.md          per-file documentation: every option, and why you'd use it
   HANDOFF.md         this file
   common/            cosmology, the P1D estimator, cache I/O, run registry, UVB
@@ -431,7 +493,7 @@ Environment on the cluster: `conda activate astro`.
 ### Step 0 — sanity, locally, no data needed
 
 ```bash
-cd lya-repro
+cd Lyman-Alpha-PBHs
 python -m compileall -q common stages tests && echo compile ok
 python tests/test_estimator.py
 ```
@@ -459,8 +521,8 @@ cluster's SSH proxy. Set up `~/.ssh/config` and the GitHub SSH key first
 ```bash
 ssh snmgt01
 cd /data/contrib/pad_140/pcolazo
-git clone git@github.com:patricio-c/Lyman-Alpha-PBHs.git lya-repro
-cd lya-repro && conda activate astro
+git clone git@github.com:patricio-c/Lyman-Alpha-PBHs.git
+cd Lyman-Alpha-PBHs && conda activate astro
 bash scripts/migrate.sh /data/contrib/pad_140/pcolazo/LOS
 bash scripts/verify.sh
 ```
@@ -726,7 +788,7 @@ without a local clone.
 
 There are two working copies: the laptop (where code gets written and
 pushed via the GitHub MCP, no local git needed there) and Clementina
-(`/data/contrib/pad_140/pcolazo/lya-repro`, where the actual extraction and
+(`/data/contrib/pad_140/pcolazo/Lyman-Alpha-PBHs`, where the actual extraction and
 analysis run, cloned over SSH as in section 6). Both point at the same
 `https://github.com/patricio-c/Lyman-Alpha-PBHs` remote. Ordinary
 distributed-git discipline applies, nothing special:
