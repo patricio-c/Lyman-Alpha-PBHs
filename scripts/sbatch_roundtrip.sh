@@ -7,47 +7,67 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --time=06:00:00
 #
-# V1: does legacy/relos.py reproduce SWIFT's own LOS output?
+# V1: does our LOS regeneration reproduce SWIFT's own output?
 #
 # Usage:
-#   sbatch scripts/sbatch_roundtrip.sh <NATIVE_LOS.hdf5> <'SNAPSHOT*.hdf5'> [NLOS]
+#   sbatch scripts/sbatch_roundtrip.sh <RUN_DIR> <Z> [NLOS]
 #
-# NATIVE_LOS must be a file SWIFT wrote ON THE FLY. Not one relos.py
-# produced - that compares relos.py against itself - and not one written
-# with a truncated range_when_shooting_down_*, which fails by construction
-# because a third of every sightline is missing. Check the candidate first:
+# e.g.
+#   sbatch scripts/sbatch_roundtrip.sh \
+#       /data/contrib/pad_140/pcolazo/lyman/murgia/cdm 5.6 100
 #
-#   python tests/t12_relos_roundtrip.py --a <candidate>
+# Two arguments, both plain: a run DIRECTORY and a redshift. No globs, so
+# nothing for the shell to expand behind your back. legacy/relosz.py does
+# the resolving - it finds the LOS file and the snapshot by the redshift
+# each file reports, handles snapshots kept in their own subdirectory,
+# builds the pieces pattern, and calls relos.py. That is the path Pato
+# normally uses and it is the one that knows about the subdirectory layout.
 #
-# and read the ray-position range it prints. If the rays do not reach the
-# far side of the box, that file is truncated: pick another run.
+# relosz.py looks for snapshots as DIRECTORIES. A run that keeps its
+# snapshots as plain files next to the LOS files (the 40 Mpc/h pair does)
+# will make it report "No hay snapshot a z=..."; for those, call relos.py
+# directly with an explicit --snapshot glob instead.
 #
-# The snapshot glob must be quoted so the shell does not expand it, and it
-# must be at the SAME redshift as the LOS file - relos.py refuses otherwise.
-# Quote it: 'cdm-40-m6-lyman_0003*.hdf5'.
-#
-# This goes through the queue rather than an interactive session because
-# relos.py reads the entire snapshot, tens of GB, however few rays are
-# asked for. The cost is the read, not the geometry.
+# Choosing the input. The reference has to be a LOS file SWIFT wrote on the
+# fly and did NOT truncate. The 40 Mpc/h pair only holds data out to 40 of
+# 58.7372 Mpc from the h mix-up, so it cannot serve: relos.py would be
+# asked to reproduce a file that is already wrong. murgia is clean - 99.8%
+# transverse coverage, verified 2026-09-01. Step 4 of
+# scripts/run_validation_A.sh lists every (run, z) that has both a LOS file
+# and a snapshot within dz <= 0.02, and step 4b prints each one's ray range,
+# so a truncated candidate is visible before any queue time goes into it.
 set -euo pipefail
-LOS="${1:?native SWIFT LOS file}"
-SNAP="${2:?snapshot glob, quoted}"
+RUNDIR="${1:?run directory, e.g. .../lyman/murgia/cdm}"
+Z="${2:?redshift, e.g. 5.6}"
 NLOS="${3:-100}"
 
 source "$(conda info --base)/etc/profile.d/conda.sh"; conda activate astro
 cd "${SLURM_SUBMIT_DIR:-.}"; mkdir -p logs data figures
 
-REGEN="data/regen_$(basename "${LOS%.hdf5}")_n${NLOS}.hdf5"
+TAG="$(basename "$RUNDIR")_z${Z}_n${NLOS}"
+REGEN="data/regen_${TAG}.hdf5"
+RELOG="logs/relosz_${TAG}.log"
 
 echo "===== V1 step 1: regenerating ${NLOS} sightlines from the snapshot ====="
-echo "  reference : ${LOS}"
-echo "  snapshot  : ${SNAP}"
-echo "  output    : ${REGEN}"
+echo "  run      : ${RUNDIR}"
+echo "  redshift : ${Z}"
+echo "  output   : ${REGEN}"
 echo
-python legacy/relos.py --old-los "${LOS}" --snapshot "${SNAP}" \
-    --out "${REGEN}" --max-los "${NLOS}"
+python legacy/relosz.py "$RUNDIR" "$Z" --out "$REGEN" --max-los "$NLOS" 2>&1 | tee "$RELOG"
+
+# Compare against exactly the file relos.py used as its template, taken from
+# what relosz.py printed. Re-deriving it here with a second copy of the
+# matching rule is how the two quietly drift apart.
+TEMPLATE="$(sed -n 's/.*plantilla:[[:space:]]*//p' "$RELOG" | head -1)"
+if [ -z "$TEMPLATE" ] || [ ! -f "$TEMPLATE" ]; then
+    echo
+    echo "Could not read the template LOS file back from relosz.py output."
+    echo "Nothing to compare against; see ${RELOG}."
+    exit 1
+fi
 
 echo
 echo "===== V1 step 2: comparing against what SWIFT itself wrote ====="
-python tests/t12_relos_roundtrip.py --a "${LOS}" --b "${REGEN}" \
-    --max-los "${NLOS}" --out figures/t12_roundtrip.txt
+echo "  reference: ${TEMPLATE}"
+python tests/t12_relos_roundtrip.py --a "$TEMPLATE" --b "$REGEN" \
+    --max-los "$NLOS" --out figures/t12_roundtrip_${TAG}.txt
