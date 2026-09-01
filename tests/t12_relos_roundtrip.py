@@ -29,13 +29,15 @@ What it reports
 For each file on its own:
 
     number of sightlines, box, redshift, kernel gamma, fields present,
-    particles per sightline, and the RANGE of the ray positions.
+    particles per sightline, and the RANGE of the ray positions, broken
+    down per integration axis.
 
 That last one is a diagnostic in its own right.  If the ray positions of a
 run span [0, 40] while the box is 58.74, that run sampled 46% of the
 transverse face, and two runs where one is truncated and the other is not do
 not sample the same volume - which is a candidate explanation for stage 02's
-verdict that the sightlines of the two production boxes are unrelated.
+verdict that the sightlines of the two production boxes are unrelated.  So
+is a difference in which axes each run shot along.
 
 For the pair:
 
@@ -54,9 +56,10 @@ Usage
     # describe one file, including the ray-position range
     python tests/t12_relos_roundtrip.py --a los_0010.hdf5
 
-    # the round trip
-    python legacy/relos.py --old-los NATIVE.hdf5 \\
-        --snapshot 'snap_0003*.hdf5' --out /tmp/regen.hdf5 --max-los 100
+    # the round trip, driven by the queue script (recommended)
+    sbatch scripts/sbatch_roundtrip.sh <run dir> <z> 100
+
+    # or by hand, once you hold both files
     python tests/t12_relos_roundtrip.py --a NATIVE.hdf5 --b /tmp/regen.hdf5
 
 Options
@@ -142,11 +145,24 @@ def report_one(d, say):
     c = d["counts"]
     say(f"  particles per LOS   min {c.min()}  median {int(np.median(c))}  "
         f"max {c.max()}  total {c.sum()}")
+    # Broken out per integration axis: a run that shoots along all three
+    # axes has a different pair of transverse directions for each group, so
+    # pooling them would average away exactly the asymmetry being looked
+    # for. It also makes visible the case where two runs shoot along a
+    # different NUMBER of axes, which on its own would leave their
+    # sightlines unrelated whatever the seed was.
     lo, hi = d["pos"].min(axis=0), d["pos"].max(axis=0)
-    say(f"  ray positions       axis0 [{lo[0]:.4f}, {hi[0]:.4f}]   "
-        f"axis1 [{lo[1]:.4f}, {hi[1]:.4f}]   of a {d['box']:.4f} box")
+    for ax in sorted(set(d["axes"].tolist())):
+        m = d["axes"] == ax
+        l, h = d["pos"][m].min(axis=0), d["pos"][m].max(axis=0)
+        cov = 100 * float(np.prod((h - l) / d["box"]))
+        say(f"  rays along axis {ax}  n = {int(m.sum()):<6d} "
+            f"[{l[0]:.4f}, {h[0]:.4f}] x [{l[1]:.4f}, {h[1]:.4f}]   "
+            f"{cov:.1f}% of the face")
     frac = float(np.prod((hi - lo) / d["box"]))
-    say(f"  transverse coverage {100 * frac:.1f}% of the box face")
+    say(f"  all rays pooled     [{lo[0]:.4f}, {hi[0]:.4f}] x "
+        f"[{lo[1]:.4f}, {hi[1]:.4f}]   of a {d['box']:.4f} box"
+        f"   -> {100 * frac:.1f}% coverage")
     if hi.max() < 0.85 * d["box"]:
         say(f"  [!] the rays do not reach the far side of the box. This is")
         say(f"      the signature of range_when_shooting_down_* being set")
