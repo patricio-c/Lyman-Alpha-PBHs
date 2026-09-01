@@ -846,9 +846,21 @@ analysis run, cloned over SSH as in section 6). Both point at the same
 `https://github.com/patricio-c/Lyman-Alpha-PBHs` remote. Ordinary
 distributed-git discipline applies, nothing special:
 
+- **The laptop has no git credential helper configured, and no `gh`.** This
+  has come up repeatedly. `git ls-remote` works (read is anonymous), but
+  `git push` from the laptop would prompt for a token interactively, which
+  is not something to do in a Claude session. **From the laptop, push with
+  the GitHub MCP** (`create_or_update_file`, one call per file, full file
+  content, needs the current blob SHA). It goes straight to `main`. Verify
+  afterwards by `curl`-ing the raw file back and diffing against the local
+  copy — the MCP call takes the whole file, so a transcription slip is
+  silent otherwise. From Clementina, plain `git push` over SSH through the
+  proxy works; that is the route for anything large.
 - Whoever is about to edit code, `git pull` first (or, on the laptop side,
-  just re-read the file before editing — the MCP push always goes straight
-  to `main`).
+  pull the current file with
+  `curl -sfL https://raw.githubusercontent.com/patricio-c/Lyman-Alpha-PBHs/main/<path>`
+  and edit that, rather than editing a copy from earlier in the session —
+  the MCP push always goes straight to `main`).
 - Small, logical commits beat one giant one, same as any repo.
 - `cache/*.npz` and `data/*.hdf5` are gitignored on purpose — caches made on
   Clementina do not travel to the laptop and do not need to. Only code,
