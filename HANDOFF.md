@@ -12,25 +12,40 @@ the cluster is remote.
 
 ## 0. Current status — read this first, every session
 
-Updated 2026-09-01 (second pass, after V1). This section is the fast-changing
-punch list; the rest of the file is stable background. Start every new session
-here, and dip into the numbered sections below only for the *why* behind
-something.
+Updated 2026-09-02. This section is the fast-changing punch list; the rest of
+the file is stable background. Start every new session here, and dip into the
+numbered sections below only for the *why* behind something.
 
-**Done:**
-- Repo scaffolding pushed to `https://github.com/patricio-c/Lyman-Alpha-PBHs`
-  (public). Migration of `legacy/` done 2026-08-31, `VERIFY OK`.
-- Geometry check passed clean 2026-08-31. Every number in section 5 matched.
-- Validation block A run 2026-09-01 (`scripts/run_validation_A.sh`, one log).
-- `common/units.py` numpy-2 fix: `getattr(np, "trapezoid", np.trapz)`
-  evaluated its default eagerly and died on numpy >= 2.3, where `np.trapz` no
-  longer exists. `tests/test_estimator.py` now runs to the end.
-- **V1 PASSED, 2026-09-01.** See below. This was the gate on t7.
-- `legacy/relos.py` fixed to write `Xaxis`/`Yaxis`/`Zaxis`/`NumParts`. See
-  below. Ray positions are untouched.
-- The V2 hand-off file is cut: `data/los_murgia_cdm_z5_20.hdf5`, 20
-  sightlines, 16.9 MB, from `murgia/cdm/los_0003.hdf5` at z=5.0. Verified to
-  carry `NumParts`, `Xaxis`, `Xpos`, `Yaxis`, `Ypos`, `Zaxis` per group.
+**The headline, if you read nothing else.** The validation phase is over: V1
+passed and the chain is under control. What came out of it is a second,
+larger result that was not the plan. The star-formation threshold used by
+every Lyman-alpha constraint in this literature removes a *different amount
+of gas* in a model with enhanced small-scale power than it does in LCDM, and
+that differential has never been reported. We measured it: 12-17% at
+`Delta > 1000` for a published PBH model. The approximation was validated
+inside LCDM only, and a constraint needs the differential, not the
+approximation. See "The QLA threshold result" below. That is now the most
+valuable thing in this repository.
+
+---
+
+### Done this session (2026-09-01/02)
+
+- **V1 PASSED.** `relos.py` reproduces SWIFT's own LOS output to numerical
+  precision. Details below. t7 is unblocked.
+- **The `uni512_seed12345` finding.** Closed three separately-logged
+  mysteries, reopened one. Details below.
+- **`legacy/relos.py` fixed** to write `Xaxis`/`Yaxis`/`Zaxis`/`NumParts`.
+  No number changes; ray positions verified bit-identical.
+- **`common/units.py` numpy-2 fix** (Pato). `getattr(np, "trapezoid",
+  np.trapz)` evaluated its default eagerly and died on numpy >= 2.3.
+  `tests/test_estimator.py` now runs to the end.
+- **Nine murgia caches extracted** — `cdm`, `M2`, `M3` at z = 4.6, 5.0, 5.4,
+  1536 sightlines each, `scripts/sbatch_murgia.sh`. First V3 numbers below.
+- **The V2 hand-off file is cut and verified:**
+  `data/los_murgia_cdm_z5_20.hdf5`, 20 sightlines, 16.9 MB, from
+  `murgia/cdm/los_0003.hdf5` at z=5.0. Carries `NumParts`, `Xaxis`, `Xpos`,
+  `Yaxis`, `Ypos`, `Zaxis` per group. Not sent yet.
 
 ---
 
@@ -51,10 +66,8 @@ something.
     P1D ratio                                  1.0000 at every k
 
 t12 prints FAIL because its criterion is binary (`exact == n`). **Read the
-numbers, not the verdict.** We never miss a particle SWIFT had, the field
-values on shared particles are bit-identical, and the three extra particles
-sit in pixels with `tau ~ 4000`, i.e. `F = 0` on both sides. The flux field
-and the P1D are the same to numerical precision.
+numbers, not the verdict.** The three extra particles sit in pixels with
+`tau ~ 4000`, i.e. `F = 0` on both sides.
 
 The sentence this licenses:
 
@@ -63,292 +76,373 @@ The sentence this licenses:
 > agree on 97 of 100 sightlines; the three exceptions differ by one particle
 > each, in fully saturated pixels, and change P1D by less than 1e-4 per cent.
 
-**Scope of what was tested**, so nobody over-reads it: one run, one redshift,
-100 sightlines, **all along axis 2** (the first 100 groups of a murgia file
-are all axis 2), reusing the template's ray positions. Not tested: the
-`--uniform` path, the `--skip-los` batching, and the axis detection in
-`read_rays()` on axes 0 and 1. Enough for t7, which reuses positions.
+**Scope**: one run, one redshift, 100 sightlines, all along axis 2, reusing
+the template's ray positions. Not tested: the `--uniform` path, `--skip-los`
+batching, axis detection on axes 0 and 1. Enough for t7.
 
 **The three extra particles are not understood and it does not matter.**
 `b/(gamma*h)` = 0.495, 0.879, 0.766, so not a kernel-edge rounding case.
-`SplitCounts = 0` and progenitor == own ID, so not particle splitting.
-`Header/Time` is bit-identical in both files, so not a different epoch. Their
-`h` is in the bottom percentile of their sightline, so not a stale cell
-`h_max`. Three hypotheses tried, three wrong. If it is ever worth chasing,
-the answer is in SWIFT's `line_of_sight.c`, not in more numpy. It changes
-nothing downstream.
+`SplitCounts = 0`, progenitor == own ID, so not particle splitting.
+`Header/Time` bit-identical, so not a different epoch. Their `h` is in the
+bottom percentile of their sightline, so not a stale cell `h_max`. Four
+hypotheses, four wrong. If it is ever worth chasing, the answer is in SWIFT's
+`line_of_sight.c`, not in more numpy.
 
 ---
 
-### The `uni512_seed12345` finding — this resolves three open items at once
+### The `uni512_seed12345` finding
 
 **The production caches were NOT made from SWIFT's own LOS files.** From the
-`source` field of the caches themselves:
+`source` field of the caches:
 
     cache/cache_cdm.npz  (1536, 2048)  regen/cdm40_z3.0_uni512_seed12345.hdf5
     cache/cache_fct.npz  (1536, 2048)  regen/fct40_z3.0_uni512_seed12345.hdf5
 
 `relos.py --uniform 512` draws 512 rays per axis over three axes = **1536**,
-and `make_uniform_rays` draws uniformly over the **whole** box face. Verified
-bit-for-bit: regenerating with `--uniform 512 --seed 12345` on the 58.73715
-box gives `LOS_0000  Xaxis=1 Xpos=13.353070342258142 Yaxis=2
-Ypos=18.605482517633362 Zaxis=0`, identical to the file on COSMA.
+uniformly over the **whole** box face. Verified bit-for-bit: regenerating with
+`--uniform 512 --seed 12345` on the 58.73715 box gives `LOS_0000  Xaxis=1
+Xpos=13.353070342258142 Yaxis=2 Ypos=18.605482517633362 Zaxis=0`, identical to
+the file on COSMA. Confirmed by Pato: that is how they were made.
 
-Three things that had been logged as separate mysteries are the same fact:
-
-1. **"6144 or 1536 sightlines?" — answered, and it was a false dichotomy.**
-   They are different files. SWIFT's own files hold 6144. The analysis used a
-   1536-ray `--uniform 512 --seed 12345` regeneration. Nothing was subsampled.
+1. **"6144 or 1536 sightlines?" was a false dichotomy.** Different files, not
+   a subsample.
 2. **The published numbers do NOT rest on truncated sightlines.** The 6144
-   SWIFT files are truncated to 46% of the transverse face by the `h` mix-up.
-   The 1536 uniform rays cover the whole face by construction. Any earlier
-   note in this file implying the production results are truncated is wrong.
+   SWIFT files are truncated to 46% of the transverse face by the `h` mix-up;
+   the 1536 uniform rays cover the whole face by construction.
 3. **`tau_eff` 0.42461 (cache) vs 0.26192 (100-line cut) is not a bug.** The
-   cut came from the truncated SWIFT file, where each sightline is missing
-   ~32% of its particles. Fewer particles, lower density, lower tau.
+   cut came from the truncated SWIFT file, missing ~32% of particles per line.
 
-**And it changes what stage 02 measured.** `stages/02_check_los_match.py` was
-pointed at `lyman/cdm-box-40-1024/los_0010.hdf5` and
-`lyman/2-fct-box-40-1024/los_0010.hdf5`, i.e. **the 6144 SWIFT files, not the
-files the caches came from.** Those two SWIFT files are genuinely unrelated to
-each other. That says nothing about the 1536 uniform rays, which — same seed,
-same box, same `default_rng` — are the *same positions in both runs*.
+**And stage 02 measured the wrong files.** It was pointed at
+`lyman/{cdm,2-fct}-box-40-1024/los_0010.hdf5`, the 6144 SWIFT files, which are
+genuinely unrelated to each other. The caches come from the 1536 uniform
+regenerations, which — same seed, same box, same `default_rng` — are the same
+positions in both runs. That explains t9's `sigma(common)/sigma(unpaired) =
+0.3733` and per-line correlation `+0.8592`, which is impossible for unpaired
+lines. **Re-run stage 02 on the `regen/*_uni512_seed12345.hdf5` pair.** Until
+then, do not requote any significance and do not send anyone a correction to
+the 20 sigma.
 
-That in turn explains t9's result, which had looked like a contradiction:
+---
 
-    sigma(common index) / sigma(unpaired)   0.3733
-    per-line correlation between runs       +0.8592
+### THE QLA THRESHOLD RESULT — the new line of work
 
-Under a common-index bootstrap draw, `corr(X_A, X_B)` is exactly the per-line
-Pearson correlation in the population. +0.86 is impossible for unrelated
-sightlines and expected for matched ones. **The lines are very probably
-paired after all, and t8 is very probably valid.** Re-run stage 02 on the
-`regen/*_uni512_seed12345.hdf5` pair to close it. Do that before requoting any
-significance, and before acting on anything this file previously said about
-"the pairing is broken".
+**The measurement.** Gas particles near the 1536 sightlines, murgia:
+
+    z      cdm          M2           M3           M2/cdm    M3/cdm
+    4.6    10254106     9966312      8967279      -2.8%     -12.6%
+    5.0    10300624     9997184      8838658      -3.0%     -14.2%
+    5.4    10351074     9957027      8588390      -3.8%     -17.0%
+
+`M2` = `M_PBH = 10^2 M_sun`, `M3` = `10^3 M_sun`, both `f_PBH = 1`, confirmed
+by Pato. All three share the Panphasia descriptor
+`[Panph6,L20,(235287,445214,422255),S1,KK1025,CH-999,COLIBRE050]` and the same
+`Omega_cdm`: same realisation, different input transfer function. Sample
+variance cancels in the ratio at the level of the ICs.
+
+**The prescription is identical to the literature's.** From the SWIFT
+parameters stored in the LOS file:
+
+    Parameters/QLAStarFormation:over_density = 1000
+
+And the chain in the literature: Murgia+2019 -> Irsic+2017 -> Bolton+2016
+(Sherwood) -> Viel+2004, all using **`Delta > 1000`** (Viel adds
+`T < 10^5 K`; SWIFT's QLA appears to key on overdensity alone, which converts
+slightly *more* — the one asymmetry, and it should be checked and stated).
+
+**Where the justification fails.** Viel, Haehnelt & Springel 2004, which is
+what the whole chain rests on:
+
+> "In a pixel-to-pixel comparison with a simulation which adopted the full
+> multi-phase star formation model of Springel & Hernquist (2003) we
+> explicitly checked for any differences introduced by this approximation. We
+> found that the differences in the flux probability distribution function
+> were smaller than 2%, while the differences in the flux-power spectrum were
+> smaller than 0.2%."
+
+That test is **QLA versus multi-phase, inside LCDM**. It validates the
+approximation for a given cosmology. It says nothing about
+`QLA(model A) - QLA(model B)`, which is the quantity a constraint needs —
+and the entire mechanism of these models is to put more small-scale power in,
+i.e. to send more gas over the threshold. In their check both sides had the
+same amount of gas crossing. In a PBH constraint they do not. We measure the
+differential at 12-17%.
+
+**Why the "that gas makes no P1D" defence does not hold.** True for its
+*direct* contribution: it is self-shielded and saturated, `F = 0`. False for
+its *indirect* effect, and this repository already has the controls (section
+1): removing 40% of the gas **at random** gives a power ratio of 0.9999;
+removing gas **above a density threshold** until the masses match drops it to
+about 0.10. Same mass, two orders of magnitude apart. Threshold removal is
+spatially correlated with the density field, so it changes the gas-matter bias
+on *all* scales, including the unsaturated ones that do produce P1D. And
+because the removal tracks the peaks, the bias change is scale-dependent — a
+tilt, not an amplitude.
+
+**The signature, measured.** `stages/04_p1d.py`, normalised to a common
+`tau_eff`, ratio to `cdm`:
+
+    k [s/km]   M3 z=4.6   M3 z=5.0   M3 z=5.4     M2 z=5.0
+    0.0030      0.9633     0.9653     0.9244       1.0189
+    0.0050      0.9435     0.9427     0.9446       1.0239
+    0.0100      1.0301     1.0497     1.0308       1.0135
+    0.0200      1.0419     1.0969     1.1711       1.0296
+    0.0300      1.0963     1.1877     1.3064       1.0325
+    0.0600      1.2626     1.4325     1.7316       1.1090
+
+Two separate things:
+
+- **Above k ~ 0.007 s/km (~1 h/Mpc): we reproduce the published prediction.**
+  At z=5, k=0.06 s/km = 8.2 h/Mpc, M3 gives +43% and M2 +11%. Murgia+2019
+  Figure 1 (solid red, 10^3 M_sun, 1D flux, z=5) reaches roughly 30-40% near
+  8-10 h/Mpc, with the 10^2 curve well below it. Right ordering, right
+  magnitude. **Those figure values are eyeballed off a rendered page and are
+  worth +-5-10 percentage points — get the real curve before quoting.**
+- **Below k ~ 0.007 s/km: a 5-6% deficit their prediction cannot produce.**
+  The Poisson term `P_PBH = 1/n_PBH` is positive definite; their curve cannot
+  go below zero at any k. The deficit is there at all three redshifts.
+
+**The internal control is in the same experiment.** `M2` loses 3% of its gas
+and shows no low-k deficit (0.98, 1.02, 0.98). `M3` loses 13-17% and shows
+5-6%. Two points, right direction, same run family, same phases.
+
+**Where it lands observationally.** MIKE/HIRES data is `k = 0.001 - 0.08
+s/km` and Murgia+2019 fit only `k > 0.005 s/km`. The deficit sits at
+0.003-0.007 and crosses unity right there — at the low-k edge of the fitted
+window, which is where the constraint anchors.
+
+**Caveats that must be closed before any of this is written up:**
+
+1. **The rescaling.** At z=5, `A(cdm) = 0.37877` against `A(M3) = 0.30997`, a
+   22% difference — more than double the 10% in the FCT/CDM pair. The
+   rescaling is **not flat in k** (see "Correction to section 1"). Part of
+   the low-k deficit may be the rescaling rather than QLA. **Re-run the ratio
+   with no normalisation before believing it.**
+2. **Sampling noise, and which way it pushes.** `wsum_raw_med` degrades
+   monotonically with the model: cdm 0.930/0.924/0.918, M2 0.900/0.888/0.874,
+   M3 0.800/0.771/0.731. Fewer gas particles means a noisier SPH density
+   estimate. Shot noise is uncorrelated between pixels, so it is **white —
+   flat in k** — and P1D falls steeply with k, so it is negligible at low k
+   and matters at high k. Therefore it **inflates the high-k enhancement**
+   (the part that validates against the paper) and **cannot create the low-k
+   deficit** (the part that is the new claim). Convenient, but measure it:
+   delete a random 12-17% of gas particles from `cdm`, re-extract, and see how
+   much high-k power that alone adds. That is the noise floor of the M3
+   comparison, and `legacy/removal_curve_pk.py` is the 3D version of the same
+   control.
+3. **The threshold has to be moved for real.** See pending item 3.
+
+**Pato's critique of t7, and it is correct.** Putting the converted particles
+back into `PartType0` gives you particles that have been *collisionless* since
+they converted: no pressure forces, so they over-collapsed, and they carry no
+temperature. `t7` sweeps `T0` (open question 4), which addresses the
+temperature but not the position or the velocity. So the "stars back" end of
+the interval has its own bias, in the direction of over-clustered gas. **t7
+gives a sign and an order of magnitude, not a number.** The number needs a
+re-run with a different threshold. Keep t7 — it is cheap and it brackets —
+but do not quote it as the systematic.
 
 ---
 
 ### Correction to section 1
 
-The table in section 1 says the `tau_eff` rescaling "makes it slightly
-deeper". **It makes it shallower.** `t0_rescaling` at z=3: `r(0.003)` goes
-from 0.7338 raw to 0.7797 rescaled. Fixed in the table.
+The section 1 table said the `tau_eff` rescaling "makes it slightly deeper".
+**It makes it shallower.** `t0_rescaling` at z=3: `r(0.003)` goes 0.7338 raw
+-> 0.7797 rescaled. Fixed in the table.
 
-Related, and worth a sentence in the paper: the rescaling is **not flat in
-k**. It moves `r(k)` by +6.26% at k=0.003 s/km and +3.91% at k=0.03, a 2.35
-percentage-point tilt across the window, and it flattens the slope of `r(k)`
-by 2.2%. That is a systematic to quote, not an effect to deny. The mechanism:
-`A` multiplies `tau`, not `delta_F`, and `|dF/dlnA| = A*tau*exp(-A*tau)`
-vanishes at both `tau << 1` and `tau >> 1`. So `A` is a spatially selective
-gain, saturated pixels do not respond, and since saturation traces
-large-scale structure the gain is k-dependent. After rescaling, FCT has 21.1x
-more transparent pixels (F>0.99) than CDM — the two runs lean on the F=1 wall
-by different amounts.
+And the rescaling is **not flat in k**: `r(k)` moves +6.26% at k=0.003 s/km
+and +3.91% at k=0.03, a 2.35 percentage-point tilt across the window, and the
+slope of `r(k)` flattens by 2.2%. Quote it as a systematic, do not deny it.
+Mechanism: `A` multiplies `tau`, not `delta_F`, and
+`|dF/dlnA| = A*tau*exp(-A*tau)` vanishes at both `tau << 1` and `tau >> 1`.
+So `A` is a spatially selective gain; saturated pixels do not respond; and
+since saturation traces large-scale structure, the gain is k-dependent. After
+rescaling, FCT has 21.1x more transparent pixels (F>0.99) than CDM — the two
+runs lean on the F=1 wall by different amounts.
 
 ---
 
 ### `legacy/relos.py` was edited — deliberately, see rule 3.2
 
-`make_uniform_rays` wrote only `Xpos` and `Ypos`. SpectWizard needs `Xaxis`,
-`Yaxis` and `Zaxis` and aborts without them, which is why a `fix.py` exists on
-COSMA. Separately, `write_output` copied `NumParts` verbatim from the template
-LOS file, so a regenerated file carried the *original's* particle count, not
-its own.
+`make_uniform_rays` wrote only `Xpos`/`Ypos`; SpectWizard needs `Xaxis`,
+`Yaxis`, `Zaxis` and aborts without them, which is why `legacy/fix_los_attrs.py`
+exists. Separately, `write_output` copied `NumParts` verbatim from the template,
+so a regenerated file carried the *original's* particle count.
 
 Both fixed. **No number changes:** our extractor reads `Xpos`/`Ypos` (the log
 prints `ray position source: ['attrs']`) and never reads `NumParts`, and the
-RNG stream is untouched, so `--uniform N --seed S` returns exactly the same
-positions as before. Verified against the COSMA file, digit for digit.
-
-Anything regenerated from now on is directly readable by SpectWizard without
-post-processing. Files made before this commit still need
-`legacy/fix_los_attrs.py`, which is the script that was patching the
-attributes in after the fact and which stays for exactly that reason — the
-`regen/*_uni512_seed12345.hdf5` files the published numbers came from were
-written before this fix.
+RNG stream is untouched. Files written before this commit still need
+`legacy/fix_los_attrs.py` — the production `regen/*_uni512_seed12345.hdf5`
+pair among them.
 
 ---
 
-### V3 — reframed onto murgia, and it is now an external check
+### V3 status
 
-V3 was "is the deficit real": t0, stage 04, stage 05, t9, t10 on existing
-caches. Status after block A: t0 clean, stage 04 clean, t9 ran without the
-block jackknife, stage 05's ratios are meaningless where `xi` crosses zero
-(`xi_FCT(600) = 0.00015`, so the 0.0488 and 1.6129 in the log are noise —
-plot the difference, not the ratio), and t10 contradicts itself and fits above
-the window (`k < 0.0653 s/km` against a DESI top of 0.0319 and a
-`common_window` top of 0.0255 — rerun with a tighter `--fit-kmax-frac`).
+t0 clean, stage 04 clean, t9 ran without the block jackknife. Two pieces are
+broken and must be fixed before they are read: **stage 05** prints ratios
+through a zero crossing (`xi_FCT(600) = 0.00015`, so the 0.0488 and 1.6129 in
+the log are noise — plot the difference, not the ratio), and **t10**
+contradicts itself and fits above the window (`k < 0.0653 s/km` against a DESI
+top of 0.0319 and a `common_window` top of 0.0255).
 
-**A V2 failure does not invalidate all of V3, and the distinction matters.**
-A purely multiplicative error in `tau` is absorbed entirely by `A` and leaves
-`r(k)` untouched, because both runs go through the same extractor. An error
-that depends on density or temperature does move it, because that is exactly
-where FCT and CDM differ. V2 tells us which case we are in.
+**A V2 failure does not invalidate all of V3.** A purely multiplicative error
+in `tau` is absorbed entirely by `A` and leaves `r(k)` untouched, because both
+runs go through the same extractor. An error that depends on density or
+temperature does move it, because that is exactly where the models differ.
+V2 tells us which case we are in.
 
-**New plan (Pato, 2026-09-01): run the analysis on `murgia/{cdm,M2,M3}`.**
-This is not a substitute for the FCT/CDM result — murgia is a different box
-(20 Mpc/h), different cosmology (`h=0.6774`, `Omega_m=0.30749`) and different
-models. It is something better: **an external, published check of the whole
-chain.**
+---
 
-The reference is **Murgia, Scelfo, Viel & Raccanelli 2019, PRL,
-arXiv:1903.10509, "Lyman-alpha forest constraints on Primordial Black Holes as
-Dark Matter"**. Why it lines up:
+### The Murgia+2019 reference
 
-- Same box and resolution: the paper's PBH grid is **512^3 particles in a
-  20 Mpc/h box**. `murgia/cdm/los_0003.hdf5` reports box 29.52465 internal =
-  20 Mpc/h, and relos.py walked 124.66M gas particles, i.e. 93% of 512^3,
-  consistent with ~7% converted to stars by z=5.
-- Same redshifts. Our murgia LOS files sit at z = 4.4, 4.6, 4.8, 5.0, 5.2,
-  5.4, 5.6. The paper's data bins are **z = 4.2, 4.6, 5.0, 5.4** (MIKE and
-  HIRES/KECK). Three of four are on our grid. That is not a coincidence.
-- Same physics as our Poisson term. Their `P_PBH(k) = 1/n_PBH` (their Eq. 1)
-  with `n_PBH = Omega_DM rho_cr f_PBH / M_PBH` (Eq. 2) is exactly what
-  pending item 6 below has to compute. Their isocurvature piece is
-  `P_iso = f_PBH^2 P_PBH = (2 pi^2 / k^3) A_iso (k/k_*)^(n_iso - 1)` with
-  `k_* = 0.05 /Mpc` and `n_iso = 4`, and
-  `P(k,z) = D^2(z) [T_ad^2 P_ad + T_iso^2 P_iso]` (Eq. 3). **Use these
-  equations for stage 03 rather than re-deriving them.**
-- They ran GADGET-III, we run SWIFT. So this is a genuine code-independent
-  comparison, not a re-run.
+**Murgia, Scelfo, Viel & Raccanelli 2019, PRL, arXiv:1903.10509**, "Lyman-alpha
+forest constraints on Primordial Black Holes as Dark Matter". Their PBH grid is
+512^3 in a 20 Mpc/h box; our murgia files are 29.52465 internal = 20 Mpc/h and
+walked 124.66M gas particles = 93% of 512^3. Their data bins are z = 4.2, 4.6,
+5.0, 5.4; our LOS grid is 4.4 to 5.6 in steps of 0.2, so three of four line up.
+They ran GADGET-III + 2LPTic + CLASS where we run SWIFT + monofonIC + CAMB, so
+this is a genuine code-independent comparison. Their result:
+`f_PBH M_PBH < 170 M_sun` (2 sigma, flat `z_reio` prior), `< 60` with a
+Gaussian prior.
 
-**Guess to verify, not to assume: `M2` and `M3` are probably `M_PBH = 10^2`
-and `10^3` M_sun with `f_PBH = 1`**, which are exactly the two models in the
-paper's Figure 1. Check `ICs_parameters` in the murgia snapshots, or ask
-whoever produced them. If that is right, Figure 1 (relative difference in the
-1D flux power at z=5, in k [h/Mpc]) and Figure 2 (1D flux spectra at the four
-redshifts for `M_PBH f_PBH` = 30, 60, 170, 1000 M_sun) are **published curves
-we should be able to hit**. That is a stronger end-to-end validation than
-Sherwood: same box, same resolution, same model class, answer in print.
+**Use their equations for stage 03 rather than re-deriving them:**
+`P_PBH(k) = 1/n_PBH` (Eq. 1) with `n_PBH = Omega_DM rho_cr f_PBH / M_PBH`
+(Eq. 2); `P_iso = f_PBH^2 P_PBH = (2 pi^2 / k^3) A_iso (k/k_*)^(n_iso - 1)`
+(Eq. 4) with `k_* = 0.05 /Mpc` and `n_iso = 4`; and
+`P(k,z) = D^2(z) [T_ad^2 P_ad + T_iso^2 P_iso]` (Eq. 3).
 
-Two things from that paper that bear directly on our own framing:
+Two things from it that bear on our framing:
 
 - They fit **the full shape of the 1D flux power, not a single amplitude
-  parameter**, and they marginalise over the mean flux (9 grid points,
-  `{0.6...1.4} x F_REF`) and over 8 further `tau` rescalings. So "do not fix
-  `A`, fit it" is not our invention, it is what the reference analysis does.
-  Cite it when writing the rescaling section.
+  parameter**, and marginalise over the mean flux (9 grid points,
+  `{0.6...1.4} x F_REF`) plus 8 further `tau` rescalings. So "do not fix `A`,
+  fit it" is what the reference analysis already does. Cite it.
 - Their Figure 1 makes the opposite-facing point to ours and both are true:
   non-linear evolution washes out the PBH signature in the **3D matter**
   power, so the **1D flux** power is the far more effective probe. Do not
-  write "P1D is incomplete" in a way that reads as "P1D is weak" — the
-  honest claim is that P1D is a second moment and carries no information from
-  saturated pixels, so tail-sensitive statistics are *complementary*, not
-  that P1D should be replaced. This is a Viel paper; the framing will be read
-  carefully.
+  write "P1D is incomplete" in a way that reads as "P1D is weak". The honest
+  claim is that P1D is a second moment of a bounded, strongly non-Gaussian
+  field and carries no information from saturated pixels, so tail-sensitive
+  statistics are *complementary*. This is a Viel paper; the framing will be
+  read carefully.
+
+Their references worth having: **[68] Irsic et al. 2017 (arXiv:1702.01764)**
+is the reference simulation suite, **[63] Murgia, Irsic & Viel 2018
+(arXiv:1806.08371)** the method paper, **[74] Bolton et al. 2017** is Sherwood,
+**[73] Hui & Gnedin 1997** is the filtering scale for pending item 9.
 
 ---
 
 **Pending, in order:**
 
-1. **Re-run stage 02 on `regen/*_uni512_seed12345.hdf5`.** Cheap, and it
-   decides whether the pairing was ever broken, whether t8 is valid, and
-   which significance gets quoted. Do this first.
-2. **V2 with Maria.** `data/los_murgia_cdm_z5_20.hdf5` is cut and ready. Ask
-   for `tau` shaped `[n_los, n_pix]` keyed by `LOS_XXXX` group name, plus her
-   `n_pix`, `dv`, `Gamma_HI` and velocity convention. Our grid: 2048 px,
-   `v_box = 2738.925 km/s`, `dv = 1.337366 km/s`, axis 2,
-   `Gamma_HI = 4.30e-13 s^-1` from TREECOOL_HM12_G+Q at z=5. **Ask for tau,
-   not flux**: this file has `tau_eff = 2.85` raw, most pixels are saturated,
-   and a 30% tau disagreement inside a trough is invisible in `F`. Our own
-   answer on those lines is `cache/cache_murgia_cdm_z5_first100.npz`.
-3. **V3 on murgia against Murgia+2019.** Confirm what M2 and M3 are, extract
-   at z = 4.6, 5.0, 5.4, and compare the ratio to the paper's Figures 1-2.
-4. **Fix and rerun the two broken pieces of V3**: stage 05 must not print a
-   ratio through a zero crossing; t10 must fit inside `common_window`.
-5. **Extract LOS caches at more redshifts for the FCT/CDM pair.** Queue job.
-   Still the biggest blocker: the whole argument is redshift evolution and
-   there is one redshift on disk. 17 LOS files exist, z=5 to z=1.8.
-   `t11_bias_bk.py` refuses to interpret a single point and says so.
-6. **Stage 03 — `A_P` and `A_b` from the initial conditions.** Does not exist
-   yet and `t11` cannot run without it. Use Murgia+2019 Eqs. 1-5 above.
+1. **The ratio without normalisation**, murgia and FCT/CDM both. Minutes, and
+   it decides how much of the low-k deficit is QLA and how much is the
+   rescaling. Nothing above gets written up before this.
+2. **The random-deletion noise floor.** Drop a random 12-17% of gas particles
+   from the `cdm` LOS file, re-extract, measure how much high-k power that
+   alone adds. One extraction, ~50 min, no queue drama.
+3. **Move the threshold for real.** Re-run `cdm` and `M3` with
+   `QLAStarFormation:over_density` at 1000 (baseline), 10^4, and with star
+   formation off. If `R(k)` moves with the threshold then `R(k)` is not an
+   observable, it is a function of a numerical choice. This is the decisive
+   test and it is the paper. The box is 20 Mpc/h at 512^3 — cheap next to the
+   1024^3 runs.
+4. **Re-run stage 02 on the `regen/*_uni512_seed12345.hdf5` pair.** Cheap.
+   Decides whether the pairing was ever broken, whether t8 is valid, and what
+   significance gets quoted.
+5. **V2 with Maria.** File is cut. Ask for `tau` shaped `[n_los, n_pix]` keyed
+   by `LOS_XXXX`, plus her `n_pix`, `dv`, `Gamma_HI` and velocity convention.
+   Our grid: 2048 px, `v_box = 2738.925 km/s`, `dv = 1.337366 km/s`, axis 2,
+   `Gamma_HI = 4.30e-13 s^-1`. **Ask for tau, not flux** — `tau_eff = 2.85`
+   raw, most pixels saturated, a 30% tau disagreement inside a trough is
+   invisible in `F`. Our answer is `cache/cache_murgia_cdm_z5_first100.npz`.
+6. **Fix stage 05 and t10** (see V3 status).
+7. **Extract FCT/CDM caches at more redshifts.** Queue job. The whole argument
+   is redshift evolution and there is one redshift on disk. 17 LOS files
+   exist, z=5 to z=1.8. `t11_bias_bk.py` refuses to interpret a single point.
+8. **Stage 03** — `A_P` and `A_b` from the ICs, using Murgia+2019 Eqs. 1-5.
    Measure the z=198 box with Pylians and check the white-noise plateau sits
-   where `A_P` predicts. Watch the `h` convention: `(Mpc/h)^3` vs `Mpc^3` is
-   `h^3 = 0.316`, which is why `t11` has no default for `--units`.
-7. **`k_F(z)`, the filtering scale.** Fit from the P_gas/P_matter suppression
-   already measured (Gnedin & Hui). The most fragile input in the programme,
-   because the broken term scales as `k_max^4`.
-8. `t11` for real, once 6 and 7 exist.
-9. **Transferability (GOAL stage C).** Repaint at three `tau_eff` and two
-   `T0`, check `R(k)` moves at the percent level. A gate: if `R(k)` is not
-   stable the ratio is not the observable. `--impose-trho` exists in
-   `legacy/prepatch/`.
-10. **t7.** Now unblocked by V1. It is the only bound available on how much of
-    `b` is QLA, and `b(QLA)` / `b(stars back)` are the two ends of the
-    systematic interval on the paper's central number.
-11. The 40 and 80 Mpc/h boxes are being re-run correctly by Pato (the `h`
-    mix-up truncates **every** box in that family, not just the 40 pair:
-    `cdm-box-80` and `fct-box-80` also stop at 80 of 117.4743, 45.6%
-    coverage). Fold in the 15 new runs and the `more_power` batch afterwards.
-    Their ICs were made **without** monofonIC's `masked=2`, so they are the
-    "hard" case for t7 — run `stages/00_inspect_snapshot.py --deep` on each
-    and read the verdict rather than assuming.
+   where `A_P` predicts. This is also an exact check on the murgia ICs: the
+   *linear* matter curve in their Figure 1 is analytic, so it can be compared
+   without digitising anything. Watch the `h` convention: `(Mpc/h)^3` vs
+   `Mpc^3` is `h^3 = 0.316`.
+9. **`k_F(z)`, the filtering scale**, from the P_gas/P_matter suppression
+   already measured (Hui & Gnedin 1997). The most fragile input in the
+   programme, because the broken term scales as `k_max^4`.
+10. `t11`, once 8 and 9 exist.
+11. **Transferability (GOAL stage C).** Repaint at three `tau_eff` and two
+    `T0`; `R(k)` must move at the percent level or the ratio is not the
+    observable. `--impose-trho` exists in `legacy/prepatch/`.
+12. **t7**, on murgia as well as FCT. Cheap, brackets the systematic, gives a
+    sign — but read Pato's critique above before quoting it as a number.
+13. The 40 and 80 Mpc/h boxes are being re-run correctly by Pato (the `h`
+    mix-up truncates **every** box in that family: `cdm-box-80` and
+    `fct-box-80` also stop at 80 of 117.4743, 45.6% coverage). Fold in the 15
+    new runs and `more_power` afterwards; their ICs were made **without**
+    monofonIC's `masked=2`, so they are the "hard" case for t7 — run
+    `stages/00_inspect_snapshot.py --deep` and read the verdict.
 
-**Parked deliberately, both good ideas, neither urgent:**
+**Parked deliberately, both good, neither urgent:**
 
 - **Profile over `A` instead of fixing it.** Grid over `(A_CDM, A_FCT)`, both
-  free, and ask whether *any* choice reproduces `r(k) = 1`. It cannot: the
-  tilt `A` can inject over the DESI window is a few per cent while `r(k)`
-  swings 43%. Two quotable statements come out — the systematic (vary `A`
-  within the observed `tau_eff` error bar) and the robustness (no `A` imitates
-  the effect). This is the clean answer to Viel's objection, and Murgia+2019
-  already does the marginalised version.
+  free, and ask whether *any* choice reproduces `r(k) = 1`. It cannot: the tilt
+  `A` can inject over the window is a few per cent while `r(k)` swings 43%.
+  Two quotable statements — the systematic (vary `A` within the observed
+  `tau_eff` error bar) and the robustness (no `A` imitates the effect).
+  Murgia+2019 already does the marginalised version.
 - **Dark gaps.** Distribution of contiguous runs with `F < threshold`. Runs on
   existing caches, is a real observable (Becker+2015, Zhu+2021), is directly
-  sensitive to the saturated tail that P1D cannot see, and is much less
-  sensitive to continuum error than the raw flux PDF. One figure, no new runs.
+  sensitive to the saturated tail P1D cannot see, and is much less sensitive
+  to continuum error than the raw flux PDF.
 
-**Non-obvious facts, kept from earlier sessions:**
-- **Clementina has no direct outbound internet.** All git traffic goes through
-  the HTTP proxy `172.28.3.3:3128`. See section 6. DESI DR1 files have to be
-  downloaded on the laptop and `scp`-ed.
-- **`relosz.py` is the entry point; `relos.py` is the engine.** relosz
-  resolves the LOS file and the snapshot from a run directory and a redshift,
-  matching on the redshift each file *reports* rather than the index in its
-  name, and knowing that snapshots may live in their own subdirectory. It
-  looks for snapshots as DIRECTORIES, so on a run that stores them as plain
-  files beside the LOS files (the 40 Mpc/h pair) it reports "No hay snapshot a
-  z=..." and you fall back to relos.py with an explicit `--snapshot` glob.
+**Non-obvious facts, kept:**
+- **Clementina has no direct outbound internet.** git goes through the HTTP
+  proxy `172.28.3.3:3128`. See section 6. DESI DR1 has to be downloaded on the
+  laptop and `scp`-ed.
+- **`relosz.py` is the entry point; `relos.py` is the engine.** relosz matches
+  on the redshift each file *reports*, not the index in its name, and knows
+  snapshots may live in their own subdirectory. It looks for snapshots as
+  DIRECTORIES, so on a run that stores them as plain files beside the LOS
+  files (the 40 Mpc/h pair) it reports "No hay snapshot a z=..." and you fall
+  back to relos.py with an explicit `--snapshot` glob.
 - **Snapshot and LOS indices do not correspond, in either direction**, and the
-  offset is not consistent between runs. Match on the redshift read out of
-  each file. relos.py refuses a snapshot more than `dz = 0.02` away.
+  offset is not consistent between runs. relos.py refuses a snapshot more than
+  `dz = 0.02` away.
+- **The murgia LOS grid**: z = 5.6, 5.4, 5.2, 5.0, 4.8, 4.6, 4.4 for
+  `los_0000` through `los_0006`. The only (LOS, snapshot) pair within
+  `dz <= 0.02` is **z=5.0** (`los_0003` + `murgia-*-lyman_0002`). The example
+  in the header of `scripts/sbatch_roundtrip.sh` says 5.6, which dies on
+  arrival. Stage 01 needs no snapshot, so all seven redshifts are extractable.
 - **murgia is the only untruncated run on disk** until the 40/80 re-runs land.
-  97.6-99.3% transverse coverage, ParticleIDs present, and `frac_below_floor
-  = 0` with `wsum_raw_med = 0.923`, against 0.3145 and 0.755 for the truncated
-  z=3 file. A third of the pixels in the truncated files hit the Shepard
-  floor; in murgia none do.
-- **The only (LOS, snapshot) pair in murgia within `dz <= 0.02` is z=5.0**
-  (`los_0003` + `murgia-*-lyman_0002`). The example in the header of
-  `scripts/sbatch_roundtrip.sh` says 5.6, which dies on arrival — `los_0000`
-  is at z=5.6 but the nearest snapshot is z=5.0.
+  97.6-99.3% transverse coverage, ParticleIDs present, `frac_below_floor = 0`
+  and `wsum_raw_med = 0.92` against 0.3145 and 0.755 for the truncated z=3
+  file. A third of the pixels in the truncated files hit the Shepard floor.
 - **Step 13 of `run_validation_A.sh` is buggy.** `CLEAN=$(head -1
   logs/v1_candidates.txt | cut -f2)` takes the *first* candidate, not a clean
   one, so it ran on the truncated `2-fct-box-40-1024/los_0015.hdf5` under an
-  echo claiming the file is untruncated. `data/los_clean_sample100.hdf5` is
-  misnamed and should be deleted. Filter on the ray range, not on position.
+  echo claiming otherwise. `data/los_clean_sample100.hdf5` is misnamed and
+  should be deleted. Filter on the ray range, not on position.
 - **`desi_window()` floats with redshift** (`k_max = 0.5 pi / R_z`). Use
   `common_window(zs)` for anything integrated across redshift bins.
-- **`D^2(2.2)/D^2(4.0) = 2.40`**, from `units.growth_factor`. That is the
-  calculable part of the redshift lever; everything above it is filtering
-  scale, thermal state and QLA.
-- **`b` measured on these runs is `b` under QLA.** The scheme converts 49.8%
-  of the FCT baryons against 14.1% in CDM. That makes the central measurable
-  a calibration of this subgrid scheme rather than a portable transfer
-  function, and it is the first thing a referee will push on. Say it out loud
-  in the paper.
-- **Mass-separability of the converted gas is per-run.** The original 40 Mpc/h
-  pair used monofonIC's `masked=2`, so DM and QLA-converted gas have different
-  particle masses in `PartType1` — the easy case `--deep` detects. The
-  `more_power` batch and the 15 new runs were made without the mask; treat
-  them as the hard case.
-- **Lead with results, not code.** Pato is working as a supervisor on this
+- **`D^2(2.2)/D^2(4.0) = 2.40`**, from `units.growth_factor`. The calculable
+  part of the redshift lever; everything above it is filtering scale, thermal
+  state and QLA.
+- **`b` measured on these runs is `b` under QLA.** 49.8% of FCT baryons
+  converted against 14.1% in CDM at z=3. Say it out loud in the paper.
+- **Mass-separability of the converted gas is per-run.** The 40 Mpc/h pair used
+  monofonIC's `masked=2`, so DM and QLA-converted gas have different particle
+  masses in `PartType1` — the easy case `--deep` detects. `more_power` and the
+  15 new runs were made without the mask; treat them as the hard case.
+- **Lead with results, not code.** Pato works as a supervisor on this
   repository. Give him verdicts, figures, and what would falsify them. Batch
   commands so one console dump answers several questions. When a stage passes,
   say which files he now has to read and which stay machinery.
+- **State confidence honestly.** Four mechanism guesses were wrong in one
+  session (the three extra particles). Label a hypothesis as a hypothesis and
+  name the command that would settle it. Pato reads the reasoning, not just
+  the conclusion.
 - **The objectives document lives outside this repository, deliberately.** Ask
-  Pato where. Decide the `.gitignore` question before it is ever committed: a
-  file that reaches a public repo stays in the history, and forks keep it.
+  Pato where. Decide the `.gitignore` question before it is ever committed.
 
 ---
 
@@ -806,6 +900,8 @@ without a local clone.
 4. **What temperature to give the reinjected gas in t7?** There is no right
    answer, so the script sweeps `T0` by factors of 0.5, 1 and 2 and the
    result has to be shown insensitive to the choice. Do not quietly pick one.
+   **And see Pato's critique in section 0**: temperature is not the only
+   thing wrong with a reinjected star particle.
 5. **Does `swift_extract.py` agree with SpectWizard?** Two independently
    written codes computing the same physics (SPH deposition + Voigt
    integral along the sightline) are not guaranteed to agree in detail —
@@ -854,8 +950,12 @@ distributed-git discipline applies, nothing special:
   content, needs the current blob SHA). It goes straight to `main`. Verify
   afterwards by `curl`-ing the raw file back and diffing against the local
   copy — the MCP call takes the whole file, so a transcription slip is
-  silent otherwise. From Clementina, plain `git push` over SSH through the
-  proxy works; that is the route for anything large.
+  silent otherwise. Note that `raw.githubusercontent.com` is CDN-cached for
+  a few minutes, so verify through
+  `https://api.github.com/repos/.../contents/<path>?ref=main` with the
+  `Accept: application/vnd.github.raw` header instead. From Clementina,
+  plain `git push` over SSH through the proxy works; that is the route for
+  anything large.
 - Whoever is about to edit code, `git pull` first (or, on the laptop side,
   pull the current file with
   `curl -sfL https://raw.githubusercontent.com/patricio-c/Lyman-Alpha-PBHs/main/<path>`
