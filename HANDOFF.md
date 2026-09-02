@@ -21,11 +21,13 @@ passed and the chain is under control. What came out of it is a second,
 larger result that was not the plan. The star-formation threshold used by
 every Lyman-alpha constraint in this literature removes a *different amount
 of gas* in a model with enhanced small-scale power than it does in LCDM, and
-that differential has never been reported. We measured it: 12-17% at
-`Delta > 1000` for a published PBH model. The approximation was validated
-inside LCDM only, and a constraint needs the differential, not the
-approximation. See "The QLA threshold result" below. That is now the most
-valuable thing in this repository.
+that differential has never been reported. We measured it from the snapshot
+headers: at `Delta > 1000`, the LCDM run converts **7.12%** of its baryons and
+the `M_PBH = 10^3 M_sun` run converts **15.51%** — more than double, a gap of
+8.4 percentage points. The approximation was validated inside LCDM only, and a
+constraint needs the differential, not the approximation. See "The QLA
+threshold result" below. That is now the most valuable thing in this
+repository.
 
 ---
 
@@ -42,6 +44,10 @@ valuable thing in this repository.
   `tests/test_estimator.py` now runs to the end.
 - **Nine murgia caches extracted** — `cdm`, `M2`, `M3` at z = 4.6, 5.0, 5.4,
   1536 sightlines each, `scripts/sbatch_murgia.sh`. First V3 numbers below.
+- **The ratio measured under both normalisations** (`--norm taueff` and
+  `--norm none`), and the **exact converted-gas fractions** read out of the
+  z=5 snapshot headers. Those two together are what produced the QLA result
+  and both corrections to it.
 - **The V2 hand-off file is cut and verified:**
   `data/los_murgia_cdm_z5_20.hdf5`, 20 sightlines, 16.9 MB, from
   `murgia/cdm/los_0003.hdf5` at z=5.0. Carries `NumParts`, `Xaxis`, `Xpos`,
@@ -126,31 +132,53 @@ the 20 sigma.
 
 ### THE QLA THRESHOLD RESULT — the new line of work
 
-**The measurement.** Gas particles near the 1536 sightlines, murgia:
+**Read the two corrections at the end of this section before using anything
+here.** The first reading of these numbers was wrong twice in a row, and the
+version that survived is better than the one that did not.
 
-    z      cdm          M2           M3           M2/cdm    M3/cdm
-    4.6    10254106     9966312      8967279      -2.8%     -12.6%
-    5.0    10300624     9997184      8838658      -3.0%     -14.2%
-    5.4    10351074     9957027      8588390      -3.8%     -17.0%
+**The measurement, exact, from the z=5 snapshot headers.** Initial gas is
+`512^3 = 134217728` particles:
 
-`M2` = `M_PBH = 10^2 M_sun`, `M3` = `10^3 M_sun`, both `f_PBH = 1`, confirmed
-by Pato. All three share the Panphasia descriptor
-`[Panph6,L20,(235287,445214,422255),S1,KK1025,CH-999,COLIBRE050]` and the same
-`Omega_cdm`: same realisation, different input transfer function. Sample
-variance cancels in the ratio at the level of the ICs.
+    run   gas at z=5     converted    (M_PBH, f_PBH = 1)
+    cdm   124664686       7.12%       LCDM
+    M2    123838499       7.73%       10^2 M_sun
+    M3    113403060      15.51%       10^3 M_sun
 
-**The prescription is identical to the literature's.** From the SWIFT
-parameters stored in the LOS file:
+`M3` converts **more than twice** what `cdm` does. That 8.4 percentage-point
+gap is the number this line of work is about. All three share the Panphasia
+descriptor `[Panph6,L20,(235287,445214,422255),S1,KK1025,CH-999,COLIBRE050]`
+and the same `Omega_cdm`: same realisation, different input transfer function,
+so sample variance cancels in the ratio at the level of the ICs.
+
+Counted near the 1536 sightlines instead of globally, M3/cdm is 14.2% rather
+than 9.0% at z=5. That difference is not noise — the surviving gas in M3 is
+distributed differently, which is the bias change showing up directly.
+
+**`PartType4` is empty in all three runs**, yet gas is missing. SWIFT's QLA
+sends the converted gas to `PartType1` as collisionless particles, not to
+`PartType4` — which is exactly what Viel+2004 says it does ("converted to
+collisionless particles"), and consistent with what this file already records
+about `masked=2` giving DM and converted gas different masses inside
+`PartType1`. So do not count stars to get the conversion fraction; count the
+missing gas, or split `PartType1` by mass. This also answers open question 1
+for murgia.
+
+**The prescription is nominally identical to the literature's.** From the
+SWIFT parameters stored in the LOS file:
 
     Parameters/QLAStarFormation:over_density = 1000
 
-And the chain in the literature: Murgia+2019 -> Irsic+2017 -> Bolton+2016
-(Sherwood) -> Viel+2004, all using **`Delta > 1000`** (Viel adds
-`T < 10^5 K`; SWIFT's QLA appears to key on overdensity alone, which converts
-slightly *more* — the one asymmetry, and it should be checked and stated).
+And the chain: Murgia+2019 -> Irsic+2017 -> Bolton+2016 (Sherwood) ->
+Viel+2004, all `Delta > 1000`. **But Viel adds `T < 10^5 K` and we appear not
+to**, and SWIFT also carries an entropy floor
+(`QLAEntropyFloor:over_density_threshold = 10`, `temperature_norm_K = 8000`)
+that GADGET does not. So "same threshold" is not "same converted fraction",
+and that asymmetry is probably why our differential is large. **Confirm it in
+`used_parameters.yml` in the run directory, not in the LOS attributes** — see
+the untapped files below.
 
-**Where the justification fails.** Viel, Haehnelt & Springel 2004, which is
-what the whole chain rests on:
+**Where the justification fails.** Viel, Haehnelt & Springel 2004, which the
+whole chain rests on:
 
 > "In a pixel-to-pixel comparison with a simulation which adopted the full
 > multi-phase star formation model of Springel & Hernquist (2003) we
@@ -160,12 +188,11 @@ what the whole chain rests on:
 > smaller than 0.2%."
 
 That test is **QLA versus multi-phase, inside LCDM**. It validates the
-approximation for a given cosmology. It says nothing about
-`QLA(model A) - QLA(model B)`, which is the quantity a constraint needs —
-and the entire mechanism of these models is to put more small-scale power in,
-i.e. to send more gas over the threshold. In their check both sides had the
-same amount of gas crossing. In a PBH constraint they do not. We measure the
-differential at 12-17%.
+approximation for a given cosmology and says nothing about
+`QLA(model A) - QLA(model B)`, which is what a constraint needs — and the
+entire mechanism of these models is to send more gas over the threshold. In
+their check both sides had the same amount of gas crossing. In a PBH
+constraint they do not.
 
 **Why the "that gas makes no P1D" defence does not hold.** True for its
 *direct* contribution: it is self-shielded and saturated, `F = 0`. False for
@@ -174,72 +201,104 @@ its *indirect* effect, and this repository already has the controls (section
 removing gas **above a density threshold** until the masses match drops it to
 about 0.10. Same mass, two orders of magnitude apart. Threshold removal is
 spatially correlated with the density field, so it changes the gas-matter bias
-on *all* scales, including the unsaturated ones that do produce P1D. And
-because the removal tracks the peaks, the bias change is scale-dependent — a
-tilt, not an amplitude.
+on *all* scales, including the unsaturated ones that do produce P1D.
 
-**The signature, measured.** `stages/04_p1d.py`, normalised to a common
-`tau_eff`, ratio to `cdm`:
+**The measured ratio, both normalisations.** `stages/04_p1d.py`, ratio to
+`cdm`, z=5.0, and the same k converted to h/Mpc (x136.9463):
 
-    k [s/km]   M3 z=4.6   M3 z=5.0   M3 z=5.4     M2 z=5.0
-    0.0030      0.9633     0.9653     0.9244       1.0189
-    0.0050      0.9435     0.9427     0.9446       1.0239
-    0.0100      1.0301     1.0497     1.0308       1.0135
-    0.0200      1.0419     1.0969     1.1711       1.0296
-    0.0300      1.0963     1.1877     1.3064       1.0325
-    0.0600      1.2626     1.4325     1.7316       1.1090
+    k [s/km]  k [h/Mpc]   M3 norm=taueff   M3 norm=none   Murgia+19 Fig.1
+      0.0030      0.41         -3.5%           +9.9%          ~0
+      0.0050      0.68         -5.7%          +10.6%          ~0
+      0.0100      1.37         +5.0%          +22.0%          ~3
+      0.0200      2.74         +9.7%          +32.2%          ~9
+      0.0300      4.11        +18.8%          +53.8%         ~16
+      0.0600      8.22        +43.3%         +120.1%         ~33
 
-Two separate things:
+The Figure 1 column is **eyeballed off a rendered page**, worth +-2 points at
+the bottom and +-8 at the top. Do not quote it. Get the real curve, or compute
+the *linear* matter curve exactly from their Eqs. 1-5 — that one is analytic
+and needs no digitising, and it is also stage 03.
 
-- **Above k ~ 0.007 s/km (~1 h/Mpc): we reproduce the published prediction.**
-  At z=5, k=0.06 s/km = 8.2 h/Mpc, M3 gives +43% and M2 +11%. Murgia+2019
-  Figure 1 (solid red, 10^3 M_sun, 1D flux, z=5) reaches roughly 30-40% near
-  8-10 h/Mpc, with the 10^2 curve well below it. Right ordering, right
-  magnitude. **Those figure values are eyeballed off a rendered page and are
-  worth +-5-10 percentage points — get the real curve before quoting.**
-- **Below k ~ 0.007 s/km: a 5-6% deficit their prediction cannot produce.**
-  The Poisson term `P_PBH = 1/n_PBH` is positive definite; their curve cannot
-  go below zero at any k. The deficit is there at all three redshifts.
+**CORRECTION 1: the low-k deficit is produced by the rescaling.** Under
+`--norm none` the ratio is positive at every k and every redshift, rising
+monotonically, which is what a positive-definite Poisson term must give:
 
-**The internal control is in the same experiment.** `M2` loses 3% of its gas
-and shows no low-k deficit (0.98, 1.02, 0.98). `M3` loses 13-17% and shows
-5-6%. Two points, right direction, same run family, same phases.
+    k [s/km]   M3 z=4.6   M3 z=5.0   M3 z=5.4
+      0.0030    1.1070     1.0991     1.0387
+      0.0050    1.0855     1.1061     1.0485
+      0.0100    1.1947     1.2196     1.1492
+      0.0600    1.7873     2.2010     2.4223
 
-**Where it lands observationally.** MIKE/HIRES data is `k = 0.001 - 0.08
-s/km` and Murgia+2019 fit only `k > 0.005 s/km`. The deficit sits at
-0.003-0.007 and crosses unity right there — at the low-k edge of the fitted
-window, which is where the constraint anchors.
+So the deficit is not an independent signature of QLA in the flux field. It is
+what the common-`tau_eff` rescaling does when the two runs sit far apart in
+raw `tau_eff`.
 
-**Caveats that must be closed before any of this is written up:**
+**CORRECTION 2: and yet Murgia+2019 rescale too, so the deficit is still the
+anomaly.** An earlier draft of this section argued their Figure 1 is at fixed
+UVB. The numbers say otherwise: the **normalised** ratio tracks their curve
+within the reading error from 1 to 8 h/Mpc, while the **unnormalised** one
+overshoots by a factor 3-4. Rescaling to a common mean flux is also the
+standard in this literature, because the mean flux is what is observed.
 
-1. **The rescaling.** At z=5, `A(cdm) = 0.37877` against `A(M3) = 0.30997`, a
-   22% difference — more than double the 10% in the FCT/CDM pair. The
-   rescaling is **not flat in k** (see "Correction to section 1"). Part of
-   the low-k deficit may be the rescaling rather than QLA. **Re-run the ratio
-   with no normalisation before believing it.**
-2. **Sampling noise, and which way it pushes.** `wsum_raw_med` degrades
-   monotonically with the model: cdm 0.930/0.924/0.918, M2 0.900/0.888/0.874,
-   M3 0.800/0.771/0.731. Fewer gas particles means a noisier SPH density
-   estimate. Shot noise is uncorrelated between pixels, so it is **white —
-   flat in k** — and P1D falls steeply with k, so it is negligible at low k
-   and matters at high k. Therefore it **inflates the high-k enhancement**
-   (the part that validates against the paper) and **cannot create the low-k
-   deficit** (the part that is the new claim). Convenient, but measure it:
-   delete a random 12-17% of gas particles from `cdm`, re-extract, and see how
-   much high-k power that alone adds. That is the noise floor of the M3
-   comparison, and `legacy/removal_curve_pk.py` is the 3D version of the same
-   control.
-3. **The threshold has to be moved for real.** See pending item 3.
+**So the chain is this, and it is stronger than the version it replaces:**
+
+> more small-scale power -> more gas over `Delta = 1000` -> more gas removed
+> -> the two runs' raw `tau_eff` move apart (2.843 vs 3.008 at z=5) -> their
+> fitted `A` move apart (0.37877 vs 0.30997, an 18% gap) -> **the
+> common-mean-flux rescaling that everyone performs then imprints a
+> k-dependent tilt whose size is set by the star-formation differential.**
+
+Nobody made an error. The standard procedure is correct and still imprints a
+model-dependent distortion. Why it bites us and not them is the size of the
+lever, and the lever is the converted-gas differential.
+
+**And it makes a falsifiable prediction**: raise the threshold, the converted
+fractions converge, the `A` converge, and **the low-k deficit must shrink**.
+That is pending item 2, and it now has a number to hit instead of being an
+open-ended check.
+
+**Two things still missing before any of this is a result:**
+
+1. **There are no error bars.** The two lowest k sit at 1.3 and 2.2 times the
+   fundamental mode of a 20 Mpc/h box (`k_fund = 0.002294 s/km` at z=5, i.e.
+   a wavelength 0.76 of the box). The 1536 sightlines are not 1536 independent
+   samples of that mode. Shared phases between the runs help a lot; unmatched
+   sightline positions between the runs do not. Only a jackknife settles it,
+   and `t9` already does bootstrap plus block jackknife and takes any two
+   caches.
+2. **Sampling noise, and which way it pushes.** `wsum_raw_med` degrades with
+   the model: cdm 0.930/0.924/0.918, M2 0.900/0.888/0.874, M3
+   0.800/0.771/0.731. Fewer gas particles means a noisier SPH density
+   estimate; shot noise is uncorrelated between pixels, so it is **white, flat
+   in k**, and P1D falls steeply with k. It therefore **inflates the high-k
+   enhancement** — the part that validates against the paper — and **cannot
+   create the low-k deficit**. Measure it by deleting a random 9% of gas
+   particles from `cdm` and re-extracting; `legacy/removal_curve_pk.py` is the
+   3D version of the same control.
 
 **Pato's critique of t7, and it is correct.** Putting the converted particles
-back into `PartType0` gives you particles that have been *collisionless* since
-they converted: no pressure forces, so they over-collapsed, and they carry no
-temperature. `t7` sweeps `T0` (open question 4), which addresses the
-temperature but not the position or the velocity. So the "stars back" end of
-the interval has its own bias, in the direction of over-clustered gas. **t7
-gives a sign and an order of magnitude, not a number.** The number needs a
-re-run with a different threshold. Keep t7 — it is cheap and it brackets —
-but do not quote it as the systematic.
+back gives you particles that have been *collisionless* since they converted:
+no pressure forces, so they over-collapsed, and they carry no temperature.
+`t7` sweeps `T0` (open question 4), which addresses the temperature but not
+the position or the velocity. **t7 gives a sign and an order of magnitude, not
+a number.** The number needs the threshold moved for real. Keep t7 — it is
+cheap and it brackets — but do not quote it as the systematic.
+
+**Untapped, and worth more than another extraction.** Every murgia run
+directory holds files nobody has opened yet:
+
+- `power_spectra/` — SWIFT computed **3D power spectra on the fly**. If
+  `P_matter` and `P_gas` are in there for all three runs, that is the
+  measurement that settled the FCT argument (matter 1.000, baryons 1.000, gas
+  0.808) available for free, without Pylians and without a queue. Do this
+  first.
+- `statistics.txt` — mass per particle type against time, i.e. the **full
+  conversion history**, not one number at z=5. Turns the differential from a
+  point into a curve against redshift.
+- `SFR.txt` — the same thing as a rate.
+- `used_parameters.yml` — what SWIFT **actually applied**, defaults included.
+  Cite this one, not `M3.yml`, which is only the input.
+  `unused_parameters.yml` shows anything SWIFT silently ignored.
 
 ---
 
@@ -335,18 +394,20 @@ is the reference simulation suite, **[63] Murgia, Irsic & Viel 2018
 
 **Pending, in order:**
 
-1. **The ratio without normalisation**, murgia and FCT/CDM both. Minutes, and
-   it decides how much of the low-k deficit is QLA and how much is the
-   rescaling. Nothing above gets written up before this.
-2. **The random-deletion noise floor.** Drop a random 12-17% of gas particles
-   from the `cdm` LOS file, re-extract, measure how much high-k power that
-   alone adds. One extraction, ~50 min, no queue drama.
-3. **Move the threshold for real.** Re-run `cdm` and `M3` with
+1. **Read `power_spectra/`, `statistics.txt` and `used_parameters.yml` out of
+   the murgia run directories.** No compute at all, and it may hand over the
+   3D gas-field measurement and the conversion history that the argument
+   needs. See the end of the QLA section.
+2. **Move the threshold for real.** Re-run `cdm` and `M3` with
    `QLAStarFormation:over_density` at 1000 (baseline), 10^4, and with star
    formation off. If `R(k)` moves with the threshold then `R(k)` is not an
-   observable, it is a function of a numerical choice. This is the decisive
-   test and it is the paper. The box is 20 Mpc/h at 512^3 — cheap next to the
-   1024^3 runs.
+   observable, it is a function of a numerical choice. It now has a specific
+   prediction to hit: raising the threshold must shrink the low-k deficit.
+   This is the decisive test and it is the paper. The box is 20 Mpc/h at
+   512^3 — cheap next to the 1024^3 runs.
+3. **Error bars on the murgia ratio**, via `t9` on those caches, and the
+   random-deletion noise floor (drop a random 9% of gas from `cdm`,
+   re-extract). Neither number above is interpretable without them.
 4. **Re-run stage 02 on the `regen/*_uni512_seed12345.hdf5` pair.** Cheap.
    Decides whether the pairing was ever broken, whether t8 is valid, and what
    significance gets quoted.
@@ -396,6 +457,15 @@ is the reference simulation suite, **[63] Murgia, Irsic & Viel 2018
   to continuum error than the raw flux PDF.
 
 **Non-obvious facts, kept:**
+- **`stages/00_inspect_snapshot.py` does not recurse into subdirectories.**
+  It reports "no snapshots found" on a run that keeps them in their own
+  directory, which is most of them. `common/runs.py::list_hdf5` does recurse,
+  so the two discovery paths disagree. Workaround: point `--run` at the
+  snapshot subdirectory itself
+  (`.../murgia/M3/murgia-M3-lyman_0002`). Worth fixing to use `list_hdf5`.
+- **SWIFT's QLA converts gas to `PartType1`, not `PartType4`.** `PartType4` is
+  empty in the murgia runs even though 7-16% of the gas is gone. Count the
+  missing gas or split `PartType1` by particle mass; do not count stars.
 - **Clementina has no direct outbound internet.** git goes through the HTTP
   proxy `172.28.3.3:3128`. See section 6. DESI DR1 has to be downloaded on the
   laptop and `scp`-ed.
@@ -438,9 +508,9 @@ is the reference simulation suite, **[63] Murgia, Irsic & Viel 2018
   commands so one console dump answers several questions. When a stage passes,
   say which files he now has to read and which stay machinery.
 - **State confidence honestly.** Four mechanism guesses were wrong in one
-  session (the three extra particles). Label a hypothesis as a hypothesis and
-  name the command that would settle it. Pato reads the reasoning, not just
-  the conclusion.
+  session (the three extra particles), and the QLA section above had to be
+  corrected twice. Label a hypothesis as a hypothesis and name the command
+  that would settle it. Pato reads the reasoning, not just the conclusion.
 - **The objectives document lives outside this repository, deliberately.** Ask
   Pato where. Decide the `.gitignore` question before it is ever committed.
 
@@ -879,7 +949,9 @@ without a local clone.
    formed, so SWIFT may be writing empty groups. Run
    `stages/00_inspect_snapshot.py --run fct40 --z 3.0 --deep` and read the
    verdict block. This decides which of three routes t7 takes, and it is the
-   single most valuable unknown right now.
+   single most valuable unknown right now. **Answered for murgia, 2026-09-02:
+   `PartType4` is empty and the converted gas is in `PartType1`.** See
+   section 0.
 2. **6144 or 1536 sightlines?** **Closed 2026-09-01, and it was a false
    dichotomy.** They are different files, not a subsample. SWIFT's own LOS
    files hold 6144; the analysis used `regen/*_uni512_seed12345.hdf5`, a
@@ -924,6 +996,8 @@ without a local clone.
   been run, or was pointed at the wrong directory.
 - `no SWIFT LOS files found` → the error message lists the hdf5 files it did
   find. The run directory is probably wrong.
+- `no snapshots found under ...` from `stages/00_inspect_snapshot.py` → it
+  does not recurse. Point `--run` at the snapshot subdirectory itself.
 - `closest LOS file is z=…, you asked for z=…` → deliberate. Nothing in this
   repository uses snapshot indices, because they are not comparable between
   runs. Pass `--los-file` explicitly if you really mean that file.
