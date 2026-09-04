@@ -51,6 +51,12 @@ Options
 -------
     --runs ...        two or more registry names or directories; the first
                       is the reference every ratio is taken against
+    --snaps ...       explicit snapshot paths instead, same order and count.
+                      Needed for runs whose snapshots are not named *snap* or
+                      *output* - murgia is one (murgia-cdm-lyman_0002.hdf5),
+                      and common/runs.py filters on those substrings, so the
+                      resolver finds nothing. Locate them with
+                        find <run dir> -name '*lyman_*.hdf5' -size +0 | sort
     --labels ...      display names, same order (default: basenames)
     --z Z             pick the snapshot closest to this redshift
     --threshold X     overdensity to mark (default 1000, the QLA value)
@@ -195,6 +201,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--runs", nargs="+", required=True)
+    ap.add_argument("--snaps", nargs="*", default=None)
     ap.add_argument("--labels", nargs="*", default=None)
     ap.add_argument("--z", type=float, required=True)
     ap.add_argument("--threshold", type=float, default=1000.0)
@@ -208,6 +215,8 @@ def main():
                              for r in args.runs]
     if len(labels) != len(args.runs):
         raise SystemExit("--labels must have one entry per run")
+    if args.snaps and len(args.snaps) != len(args.runs):
+        raise SystemExit("--snaps must have one entry per run")
 
     log = []
 
@@ -228,13 +237,23 @@ def main():
     say("Omega_m/Omega_b ~ 6.7 and the marginal-versus-deep answer changes.")
 
     C = {}
-    for r, lab in zip(args.runs, labels):
-        snap = runs.resolve_snapshot(r, z=args.z)
+    for i, (r, lab) in enumerate(zip(args.runs, labels)):
+        if args.snaps:
+            snap = os.path.abspath(args.snaps[i])
+            if not os.path.isfile(snap):
+                raise SystemExit(f"--snaps: {snap} is not a file")
+        else:
+            snap = runs.resolve_snapshot(r, z=args.z)
         say(f"\n[{lab}] {snap}")
         C[lab] = census(snap, args)
         c = C[lab]
         say(f"       z = {c['z']:.4f}   Omega_b = {c['omega_b']:.5f}   "
             f"h = {c['h']:.5f}")
+        if abs(c["z"] - args.z) > 0.05:
+            raise SystemExit(
+                f"{lab}: this snapshot is at z={c['z']:.4f} but you asked for "
+                f"z={args.z}. Analysing the wrong epoch silently is exactly "
+                f"the class of bug this repository exists to catch.")
         say(f"       gas particles {c['n_gas']:,}   "
             f"mean rho_b = {c['rho_b']:.4e} g/cm^3")
         pars = qla_params(runs.run_dir(r))
