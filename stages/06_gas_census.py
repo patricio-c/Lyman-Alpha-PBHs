@@ -56,7 +56,7 @@ Options
                       *output* - murgia is one (murgia-cdm-lyman_0002.hdf5),
                       and common/runs.py filters on those substrings, so the
                       resolver finds nothing. Locate them with
-                        find <run dir> -name '*lyman_*.hdf5' -size +0 | sort
+                        find <run dir> -name '*lyman_*.hdf5' ! -name '*.[0-9].hdf5' | sort
     --labels ...      display names, same order (default: basenames)
     --z Z             pick the snapshot closest to this redshift
     --threshold X     overdensity to mark (default 1000, the QLA value)
