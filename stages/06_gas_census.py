@@ -231,10 +231,13 @@ def main():
     say("Delta here is rho_gas / rho_baryon(cosmic mean), from Omega_b.")
     say(f"The line marked at Delta = {args.threshold:.6g} assumes SWIFT's")
     say("QLAStarFormation:over_density is defined against the mean BARYON")
-    say("density. CONFIRM THAT in the SWIFT source or documentation before")
-    say("reading the 'load-bearing' verdict below: if it is defined against")
-    say("the mean TOTAL MATTER density instead, the line moves by")
-    say("Omega_m/Omega_b ~ 6.7 and the marginal-versus-deep answer changes.")
+    say("density.  This run settles that empirically - no source-diving")
+    say("needed.  Read the cumulative table below and find where the gas")
+    say("stops existing.  If it stops just above the threshold, the")
+    say("criterion is baryon-referenced, as assumed here.  If gas survives")
+    say("out to ~6.33x the threshold (= Omega_m / Omega_b), it is referenced")
+    say("to the mean TOTAL MATTER density and every Delta quoted here has to")
+    say("be divided by 6.33.")
 
     C = {}
     for i, (r, lab) in enumerate(zip(args.runs, labels)):
@@ -302,27 +305,65 @@ def main():
     say("WHERE THE MISSING GAS SITS  (reference minus last run, per decade)")
     say("-" * 74)
     dm = C[ref]["hist_d"] - C[labels[-1]]["hist_d"]
-    tot_missing = dm[dm > 0].sum()
-    say(f"total missing mass = {tot_missing / m_ref:.5f} of {ref}")
-    if tot_missing <= 0:
-        say("[!] the last run has MORE gas than the reference at every "
-            "Delta; nothing to attribute.")
+    lost = float(dm[dm > 0].sum())
+    gained = float(-dm[dm < 0].sum())
+    net = float(dm.sum())
+    say(f"net missing mass = {net / m_ref:.5f} of {ref}"
+        f"   (lost {lost / m_ref:.5f}, gained back {gained / m_ref:.5f})")
+    if gained > 0.02 * lost:
+        say("[!] the comparison run has MORE gas than the reference in some")
+        say("    bins.  The shares below are SIGNED fractions of the NET")
+        say("    loss; a negative share means the model piled gas UP in that")
+        say("    decade instead of losing it.  Shares can exceed 100%.")
+    if net == 0.0:
+        say("[!] no net difference; nothing to attribute.")
     else:
-        say(f"{'decade in Delta':>22s} {'share of the missing mass':>26s}")
+        say(f"{'decade in Delta':>22s} {'signed share of the net loss':>29s}")
         edges = [1e-2, 1e0, 1e1, 1e2, args.threshold, 3 * args.threshold,
                  1e4, 1e5, 1e6]
         for a, b in zip(edges[:-1], edges[1:]):
             sel = (dc >= a) & (dc < b)
-            share = dm[sel][dm[sel] > 0].sum() / tot_missing
-            say(f"{a:10.4g} - {b:<9.4g} {100 * share:25.1f}%")
-        below = dm[(dc < args.threshold)][dm[(dc < args.threshold)] > 0].sum()
-        near = dm[(dc >= args.threshold) & (dc < 3 * args.threshold)]
+            say(f"{a:10.4g} - {b:<9.4g} "
+                f"{100 * float(dm[sel].sum()) / net:28.1f}%")
+        below = float(dm[dc < args.threshold].sum())
+        near = float(dm[(dc >= args.threshold)
+                        & (dc < 3 * args.threshold)].sum())
         say("")
-        say(f"below the threshold          {100 * below / tot_missing:6.1f}%"
+        say(f"below the threshold          {100 * below / net:6.1f}%"
             "   (moved, not converted - the runs differ dynamically too)")
-        say(f"within a factor 3 above it   "
-            f"{100 * near[near > 0].sum() / tot_missing:6.1f}%"
-            "   <- if this is large, the threshold VALUE is load-bearing")
+        say(f"within a factor 3 above it   {100 * near / net:6.1f}%")
+        say("    [!] that last number CANNOT decide whether raising the")
+        say("        threshold would help.  Conversion is a SINK, so the")
+        say("        standing occupancy above it is near zero in every run")
+        say("        by construction - those bins are censored.  Use the")
+        say("        extrapolation below, which is the honest way to ask.")
+
+    # ------------------------------------------------ what a higher threshold
+    # would recover.  The bins above the threshold are censored, so the only
+    # defensible estimate extrapolates the shape of the UNcensored part.  In
+    # the diffuse regime the gas mass per decade of Delta falls close to
+    # geometrically, so carry the 1-10 -> 10-100 ratio upwards.
+    say("")
+    say("-" * 74)
+    say("WOULD A HIGHER THRESHOLD PUT THE GAS BACK?   (extrapolation)")
+    say("-" * 74)
+    say("Not a measurement: the bins above the threshold are censored by the")
+    say("conversion sink.  This continues the uncensored decade ratio.")
+    for lab in labels:
+        h = C[lab]["hist_d"] / m_ref
+        d1 = float(h[(dc >= 1e0) & (dc < 1e1)].sum())
+        d2 = float(h[(dc >= 1e1) & (dc < 1e2)].sum())
+        d3 = float(h[(dc >= 1e2) & (dc < 1e3)].sum())
+        if d1 <= 0.0 or d2 <= 0.0:
+            say(f"  [{lab}] not enough diffuse gas to extrapolate")
+            continue
+        r = d2 / d1
+        pred3 = d2 * r
+        say(f"  [{lab}] decade ratio {r:.4f}   100-1000: observed {d3:.5f}"
+            f" vs uncensored guess {pred3:.5f}"
+            f"  ({100 * (1.0 - d3 / pred3):+.0f}% censored)")
+        say(f"{'':8s}gas a ten-times-higher threshold could keep: "
+            f"~{pred3 * r:.5f} of {ref} total")
 
     # ---------------------------------------------------------------- figure
     fig = plt.figure(figsize=(12.5, 9.0))
