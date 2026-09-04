@@ -57,7 +57,20 @@ Options
                       the late snapshot.  Exact but expensive: it streams
                       the whole DM ID array.
     --chunk N         particles read at a time (default 8e6)
+    --d-lo X          low edge of the Delta histogram (default 1e-2)
+    --d-hi X          high edge (default 1e6)
+    --nbins N         log bins between them (default 160)
     --out PREFIX      writes PREFIX.png and PREFIX.txt
+
+A note on picking the early snapshot.  The earliest one maximises coverage
+- an IC snapshot sees 100% of the conversion - but at high redshift the
+density field is nearly uniform, so the whole distribution collapses into
+one or two of the default bins and the percentiles become meaningless.
+Use --d-lo / --d-hi / --nbins to zoom on the range the gas occupies; the
+run warns when the binning, rather than the data, is setting the answer.
+Near the ICs the question also changes: it stops being "was this forest
+gas" and becomes "does the material that later converts start out
+overdense", which the contrast column answers.
 """
 
 from __future__ import annotations
@@ -152,9 +165,10 @@ def doomed_census(early, late_ids, args):
         f_m = cgs_factor(g[mkey])
         rho_b = ob * RHO_CRIT0_CGS * h * h * (1.0 + z) ** 3
 
-        de = np.logspace(np.log10(D_LO), np.log10(D_HI), NB + 1)
-        h_doom = np.zeros(NB)
-        h_surv = np.zeros(NB)
+        de = np.logspace(np.log10(args.d_lo), np.log10(args.d_hi),
+                         args.nbins + 1)
+        h_doom = np.zeros(args.nbins)
+        h_surv = np.zeros(args.nbins)
         n = g[ikey].shape[0]
         n_doom = 0
         m_doom = 0.0
@@ -239,6 +253,9 @@ def main():
     ap.add_argument("--n-ic", type=int, default=None)
     ap.add_argument("--check-dm", action="store_true")
     ap.add_argument("--chunk", type=int, default=8_000_000)
+    ap.add_argument("--d-lo", type=float, default=D_LO)
+    ap.add_argument("--d-hi", type=float, default=D_HI)
+    ap.add_argument("--nbins", type=int, default=NB)
     ap.add_argument("--out", default="figures/doomed_gas")
     args = ap.parse_args()
 
@@ -330,28 +347,53 @@ def main():
     say("\n" + "-" * 74)
     say("WHERE THE DOOMED GAS WAS, at the early snapshot")
     say("-" * 74)
-    say(f"{'run':8s} {'median Delta':>13s} {'90th pct':>10s} "
-        f"{'% above 100':>12s} {'% above 1000':>13s} {'% below 10':>11s}")
+    say(f"{'run':8s} {'doomed med':>11s} {'surv med':>10s} {'contrast':>9s}"
+        f" {'90th pct':>10s} {'% >100':>8s} {'% >1000':>9s} {'% <10':>8s}")
+    coarse = []
     for lab in labels:
         c = C[lab]
         dc = np.sqrt(c["d_edges"][:-1] * c["d_edges"][1:])
         w = c["h_doom"]
         tot = w.sum()
         if tot <= 0:
-            say(f"{lab:8s}   no doomed gas in range")
+            say(f"{lab:8s}   no doomed gas inside the Delta range")
             continue
         cw = np.cumsum(w) / tot
         med = float(np.interp(0.5, cw, dc))
         p90 = float(np.interp(0.9, cw, dc))
+        sw = c["h_surv"]
+        if sw.sum() > 0:
+            smed = float(np.interp(0.5, np.cumsum(sw) / sw.sum(), dc))
+            contrast = f"{med / smed:9.4f}"
+        else:
+            smed, contrast = float("nan"), "        -"
         above = lambda X: 100 * w[dc >= X].sum() / tot   # noqa: E731
-        say(f"{lab:8s} {med:13.3f} {p90:10.2f} {above(100):11.2f}% "
-            f"{above(1000):12.2f}% {100 - above(10):10.2f}%")
+        say(f"{lab:8s} {med:11.4f} {smed:10.4f} {contrast}"
+            f" {p90:10.4f} {above(100):7.2f}% {above(1000):8.2f}%"
+            f" {100 - above(10):7.2f}%")
+        # how many bins actually hold the middle 80% of the doomed mass?
+        lo = float(np.interp(0.1, cw, np.arange(len(dc))))
+        hi = float(np.interp(0.9, cw, np.arange(len(dc))))
+        if hi - lo < 4.0:
+            coarse.append(lab)
 
     say("")
     say("Read it like this: if the doomed gas sat at Delta of order 100-1000")
     say("it was already destined and never was forest gas.  If it sat at")
     say("Delta of a few, ordinary IGM is being removed and the threshold is")
     say("a real forest systematic.")
+    say("")
+    say("'contrast' is the doomed median over the surviving median at the")
+    say("same epoch.  Near the initial conditions that is the only column")
+    say("that means anything: Delta is ~1 everywhere and the question is")
+    say("whether the material that later converts starts out measurably")
+    say("overdense.  Contrast > 1 says yes.")
+    if coarse:
+        say("")
+        say(f"[!] for {', '.join(coarse)} the middle 80% of the doomed mass")
+        say("    spans fewer than 4 bins, so these percentiles are set by the")
+        say("    binning, not by the data.  Re-run over the range the gas")
+        say("    actually occupies, e.g. --d-lo 0.5 --d-hi 2 --nbins 200.")
 
     # ---------------------------------------------------------------- figure
     fig, (ax, bx) = plt.subplots(1, 2, figsize=(12.5, 4.8))
@@ -373,7 +415,7 @@ def main():
     for a in (ax, bx):
         a.axvline(1000.0, color="0.35", ls="--", lw=1.3)
         a.set_xscale("log")
-        a.set_xlim(1e-1, D_HI)
+        a.set_xlim(args.d_lo, args.d_hi)
         a.grid(alpha=0.25, which="both")
         a.set_xlabel(r"$\Delta$ at the early snapshot")
         a.legend(frameon=False, fontsize=8)
