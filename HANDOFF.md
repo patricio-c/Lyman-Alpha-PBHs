@@ -10,7 +10,20 @@ the cluster is remote.
 
 ---
 
-## 0. Current status — read this first, every session
+# 0. Current status — read this first, every session
+
+**2026-09-04 — the QLA conversion census.** `docs/RESULTS_2026-09-04_qla_census.md`
+Six results measured on snapshots already on disk, plus a corrected sign
+bug in stage 06 that had inverted the murgia verdict. **Read section 7a
+before touching tau_eff or the P1D normalisation**: in murgia the
+large-scale deficit WAS a tau_eff artefact and it went away; in the
+FCT/CDM 40 Mpc/h pair the tilt survives the correct normalisation and no
+choice of tau_eff can remove it. That distinction has been lost between
+sessions more than once. Section 7b records that every number in this
+repo for that pair rests on LOS regenerated with
+`relos.py --uniform 512 --seed 12345`, because SWIFT's own LOS output for
+those runs is truncated, and that it must be re-validated on SWIFT
+sightlines once a run is made with the LOS output configured correctly.
 
 Updated 2026-09-03. This section is the fast-changing punch list; the rest of
 the file is stable background. Start every new session here, and dip into the
