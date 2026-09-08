@@ -55,6 +55,14 @@ snapshot.  If they do not agree, this pipeline is wrong and nothing below
 it should be believed.  Pass --swift-pk to enable it; the run says loudly
 whether the check passed.
 
+ORDER OF OPERATIONS
+
+The deposits and the five auto spectra are the expensive part.  They are
+written to disk, and the control is run, BEFORE the cross spectrum is
+attempted - a first version did the cross spectrum first and lost two
+completed runs to it.  P_gc feeds only the all-baryon decomposition, which
+is supporting; losing it costs nothing that matters.
+
 Usage
 -----
     python stages/09_gas_power.py \\
@@ -77,6 +85,7 @@ Options
     --chunk N         particles read at a time (default 8e6)
     --swift-pk PATH   SWIFT's power_matter_*.txt for the same snapshot, to
                       validate P_mm against
+    --no-cross        skip the gas x converted cross spectrum
     --out PREFIX      writes PREFIX.txt (and PREFIX.npz with every array)
 """
 
@@ -178,6 +187,8 @@ def main():
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--chunk", type=int, default=8_000_000)
     ap.add_argument("--swift-pk", default=None)
+    ap.add_argument("--no-cross", action="store_true",
+                    help="skip the gas x converted cross spectrum")
     ap.add_argument("--out", default="figures/pk_gas")
     args = ap.parse_args()
 
@@ -285,10 +296,13 @@ def main():
     for nm in ("gas", "conv", "dm", "matter", "baryon"):
         auto(nm)
 
-    xpk = PKL.XPk([fields["gas"], fields["conv"]], box, 0,
-                  MAS=[args.mas, args.mas], threads=args.threads)
-    out["P_gc"] = np.asarray(xpk.XPk[:, 0, 0], dtype=np.float64)
-    say("  P_gc (gas x converted) done")
+    # Everything above this line is the expensive part - the deposits and
+    # five FFTs over 6.7e8 particles. Free what the cross spectrum does not
+    # need, run the control, and get the results onto disk BEFORE touching
+    # anything else. A first version of this stage did the cross spectrum
+    # first and lost a completed run to it.
+    for nm in ("dm", "matter", "baryon"):
+        fields.pop(nm, None)
 
     # ------------------------------------------------------- the control
     if args.swift_pk:
@@ -319,27 +333,54 @@ def main():
                 "this is understood. Check MAS, the shot-noise term, and "
                 "whether SWIFT's column 2 is really shot-subtracted.")
 
-    # ------------------------------------------------------------- output
-    os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".",
-                exist_ok=True)
-    cols = ["k", "Nmodes", "P_gas", "P_conv", "P_dm", "P_matter", "P_baryon",
-            "P_gc"]
-    arr = np.column_stack([out[c] for c in cols])
-    hdr = (f"stage 09   label {args.label}   z {z:.6f}   box {box:.6f}\n"
-           f"grid {args.ngrid}  MAS {args.mas}\n"
-           f"mass fractions gas {m_gas / m_all:.8f} conv {m_conv / m_all:.8f} "
-           f"dm {m_dm / m_all:.8f}\n"
-           f"matter shot noise {p_shot_mat:.8e}\n"
-           + "  ".join(cols))
-    np.savetxt(args.out + ".txt", arr, header=hdr)
-    np.savez(args.out + ".npz", z=z, box=box, ngrid=args.ngrid,
-             f_gas=m_gas / m_all, f_conv=m_conv / m_all, f_dm=m_dm / m_all,
-             shot_matter=p_shot_mat, **out)
-    with open(args.out + ".log", "w") as fh:
-        fh.write("\n".join(log) + "\n")
-    print(f"\nwritten -> {args.out}.txt")
-    print(f"written -> {args.out}.npz")
-    print(f"written -> {args.out}.log")
+    def write_out():
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".",
+                    exist_ok=True)
+        cols = [c for c in ("k", "Nmodes", "P_gas", "P_conv", "P_dm",
+                            "P_matter", "P_baryon", "P_gc") if c in out]
+        arr = np.column_stack([out[c] for c in cols])
+        hdr = (f"stage 09   label {args.label}   z {z:.6f}   box {box:.6f}\n"
+               f"grid {args.ngrid}  MAS {args.mas}\n"
+               f"mass fractions gas {m_gas / m_all:.8f} "
+               f"conv {m_conv / m_all:.8f} dm {m_dm / m_all:.8f}\n"
+               f"matter shot noise {p_shot_mat:.8e}\n"
+               + "  ".join(cols))
+        np.savetxt(args.out + ".txt", arr, header=hdr)
+        np.savez(args.out + ".npz", z=z, box=box, ngrid=args.ngrid,
+                 f_gas=m_gas / m_all, f_conv=m_conv / m_all,
+                 f_dm=m_dm / m_all, shot_matter=p_shot_mat, **out)
+        with open(args.out + ".log", "w") as fh:
+            fh.write("\n".join(log) + "\n")
+        print(f"written -> {args.out}.txt / .npz / .log  "
+              f"({len(cols)} columns)", flush=True)
+
+    write_out()
+
+    # --------------------------------------------- the cross spectrum, last
+    # P_gc only feeds the all-baryon decomposition, which is the supporting
+    # number and not the measurement. It goes after the results are safe.
+    if args.no_cross:
+        say("\n--no-cross: skipping the gas x converted cross spectrum.")
+    else:
+        say("\ncross spectrum (gas x converted), the last and least "
+            "important step ...")
+        try:
+            xpk = PKL.XPk([fields["gas"], fields["conv"]], box, 0,
+                          MAS=[args.mas, args.mas], threads=args.threads)
+            xk = np.asarray(xpk.XPk)
+            out["P_gc"] = np.asarray(
+                xk[:, 0, 0] if xk.ndim == 3 else xk[:, 0],
+                dtype=np.float64)
+            say("  P_gc done")
+            write_out()
+        except Exception as exc:                            # noqa: BLE001
+            say(f"  [!] the cross spectrum failed: "
+                f"{exc.__class__.__name__}: {exc}")
+            say("      Everything else is already on disk. P_gc is only "
+                "needed for the all-baryon decomposition; P_gg, the "
+                "measurement, does not depend on it. Re-run with "
+                "--no-cross, or with a larger --mem, to silence this.")
+    print(f"\ndone -> {args.out}.txt")
 
 
 if __name__ == "__main__":
