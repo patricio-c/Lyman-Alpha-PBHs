@@ -29,12 +29,18 @@ comparison measures a subgrid artefact rather than physics.
    gas starts out 2.4x more overdense at z = 198 than CDM's does. That is
    the PBH Poisson isocurvature seeding the loss, measured directly.
 5. **The total matter power of the two 40 Mpc/h runs agrees to 1.0002 at
-   the fundamental mode**, and FCT exceeds CDM at every smaller scale. So
-   the entire P1D suppression lives in the baryon partition, not in the
-   dynamics.
-6. Therefore: **the 21% P1D suppression is an upper bound set by a subgrid
-   model with no feedback.** The direction is physical; the magnitude is
-   not yet trustworthy. `t7` brackets it from the other side.
+   the fundamental mode**, and FCT exceeds CDM at every smaller scale.
+6. **The flux P1D ratio is strongly tilted, not flat**: 0.786 at
+   k = 0.0030 s/km rising to 1.200 at 0.0600, crossing unity near 0.015.
+   FCT is suppressed at large scales and enhanced at small ones. Two
+   regimes with two different causes - the baryon drain below the
+   crossover, FCT's own primordial power above it.
+7. **In murgia the large-scale deficit was a tau_eff artefact and it went
+   away. Here it does not.** No choice of tau_eff removes this tilt. See
+   section 7a; this is the point that keeps getting lost between sessions.
+8. Therefore: **the large-scale suppression is an upper bound set by a
+   subgrid model with no feedback.** The direction is physical; the
+   magnitude is not yet trustworthy. `t7` brackets it from the other side.
 
 ---
 
@@ -296,32 +302,132 @@ large-scale difference in the P1D can come from the matter field. The
 excess is purely small-scale and monotonic, exactly as a broken spectrum
 plus a k^3 Poisson term must behave.
 
-**And the decisive one.** Over the P1D window, k = 0.47 to 7.3 Mpc^-1,
-FCT's total matter has MORE power than CDM everywhere, up to +20%. The
-flux P1D has **21% less** (0.7857 against ref-CDM). The matter says more
-clustered, the flux says less power. **The entire suppression lives in the
-baryon partition.**
+**And the decisive one**, once it is put next to the flux. The P1D ratio
+is not flat - an earlier version of this document said it was, and that
+was wrong. Cross the two, using the pipeline's own conversion
+k[s/km] x 76.5769 = Mpc^-1:
+
+| k [s/km] | k [Mpc^-1] | P_matter ratio | P1D flux ratio |
+|---|---|---|---|
+| 0.0030 | 0.23 | 1.000 | **0.786** |
+| 0.0050 | 0.38 | 1.002 | 0.850 |
+| 0.0100 | 0.77 | 1.007 | 0.935 |
+| 0.0200 | 1.53 | ~1.025 | 1.062 |
+| 0.0300 | 2.30 | ~1.055 | 1.148 |
+| 0.0600 | 4.60 | ~1.13 | **1.200** |
+
+**Two regimes, two causes, crossing near k = 0.015 s/km.**
+
+- **Large scales.** The matter fields are identical to four decimals and
+  the flux is 21% down. Nothing dynamical can produce that. The
+  large-scale suppression is **entirely the baryon partition**.
+- **Small scales.** Matter is up 13% and flux up 20%. That is FCT's extra
+  primordial power coming through, amplified by the non-linear response of
+  the flux (tau scales roughly as rho^1.6, so flux fluctuations exceed
+  density fluctuations).
 
 Quote nothing above k ~ 50 Mpc^-1: Nyquist for 1024^3 in 58.7 Mpc is 55,
 and the 366 bins run to 2492 only because they include the foldings.
 
-### Why an ad-hoc k-rescaling of the P1D must not be used
+## 7a. READ THIS BEFORE TOUCHING tau_eff AGAIN
 
-It was proposed, and it should not be. Three reasons:
+**In murgia the large-scale deficit was an artefact of the tau_eff
+normalisation and it disappeared completely once the target was set to the
+CDM run's own raw value. In the 40 Mpc/h FCT/CDM pair it does not.**
 
-1. There is no tilt to correct. Against the correct tau_eff target the
-   FCT/CDM ratio is 6.79-7.65% across the band, and **there are no error
-   bars yet** (pending: the t9 jackknife). Fitting a free linear-in-k term
-   to 0.86 points of scatter of unknown significance is fitting noise.
-2. The matter ratio *rises* with k while the flux ratio is flat. There is
-   no common k-filter to remove.
-3. The 21% is the result, not a nuisance. A free k-dependent factor that
-   makes the curves agree deletes the measurement and makes every later
-   comparison circular.
+Both runs of that pair are already normalised to a common target and the
+tilt is still there:
 
-The one legitimate k-dependent correction is the SPH sampling-noise floor
-(pending item 1, `f = 0.084`, mass-compensated): white, flat in k, and its
-amplitude is **derived from the particle sampling, not fitted**.
+    common tau_eff target = 0.42461
+    CDM   nlos 1536   z 3.000   tau_eff raw 0.42461   A 1.00001
+    FCT   nlos 1536   z 3.000   tau_eff raw 0.40350   A 1.09058
+
+    k [s/km]   0.0030  0.0050  0.0100  0.0200  0.0300  0.0600
+    FCT/CDM    0.7857  0.8498  0.9347  1.0620  1.1479  1.1997
+
+This distinction is the single most important line on this page and it has
+been lost between sessions more than once:
+
+  - **murgia**: large-scale deficit = tau_eff artefact. Fixed. Gone.
+  - **FCT/CDM 40 Mpc/h**: tilt = survives the correct normalisation. It is
+    **not** removable by any choice of tau_eff.
+
+And it cannot be, as a matter of the estimator rather than of this data
+set. Rescaling tau by a constant is a single multiplicative operation on
+every pixel; to first order it cannot produce a k-dependent change in the
+flux power ratio. So no value of tau_eff will flatten this. Anyone who
+proposes one has misremembered the murgia result.
+
+The tilt has reproduced across many independent runs of the pipeline, with
+different settings, over several sessions. That is evidence, not proof -
+see section 7b for what still has to be re-validated.
+
+### Why an ad-hoc k-rescaling of the P1D must not be used either
+
+It was proposed. It should not be used, and the reason is now stronger
+than when this document first argued it:
+
+1. **The tilt is the signal.** A free k-dependent factor that flattens the
+   ratio deletes the main result and makes every later comparison
+   circular.
+2. The matter ratio and the flux ratio tilt in the same direction at small
+   k but by wildly different amounts (1.000 against 0.786). There is no
+   common k-filter that could produce both.
+3. There are still **no error bars** (pending: the t9 jackknife). Fitting
+   free k-dependent parameters before knowing the noise is fitting noise.
+
+The one legitimate k-dependent correction remains the SPH sampling-noise
+floor: white, flat in k, amplitude **derived** from the particle sampling
+rather than fitted. Note that `wsum_raw_med` is 0.8538 for CDM and 0.4996
+for FCT - the two runs are not sampled equally, and that alone justifies
+doing it properly.
+
+## 7b. What every number here rests on, and what must be re-validated
+
+**The 40 Mpc/h pair's on-the-fly SWIFT LOS output is unusable.** It was
+written with `range_when_shooting_down_* = [0, 40]` in a 58.7372 box, so
+its 6144 sightlines sample about 46% of the transverse face. Every result
+quoted in this document - the original comparison and t7 alike - therefore
+uses sightlines **regenerated from the snapshots** with
+
+    legacy/relos.py --uniform 512 --seed 12345
+
+which gives 1536 rays (512 per axis, three axes) over the full box. The
+original caches record it in their `source` field,
+`regen/cdm40_z3.0_uni512_seed12345.hdf5`. Anything compared against those
+caches must use the same rays and the same seed, or it samples a different
+region of the box and the comparison is meaningless. This was nearly got
+wrong once: a first t7 pass was regenerated from `los_0010.hdf5`, giving
+SWIFT's 6144 truncated rays, and had to be thrown away.
+
+**So this must be re-validated.** When a run is next made with the LOS
+output configured correctly, repeat the comparison on SWIFT's own
+sightlines and confirm the tilt is unchanged. Until then the tilt rests on
+`legacy/relos.py` being correct. `tests/t12_relos_roundtrip.py` is the
+test for that, and it **cannot** be run on this pair, because both sides
+are already relos.py output - comparing relos against relos proves
+nothing. Use murgia, whose LOS were written correctly on the fly.
+
+## 7c. The most likely explanation, as a hypothesis
+
+Extra small-scale power makes many small haloes sprout in filaments and in
+voids. QLA converts them and, having no feedback, keeps them. Removing
+them from the gas field leaves the filaments less dense and the voids
+emptier, so the large-scale clustering of the *absorbing* gas falls even
+though the total matter field is untouched. At small scales FCT's extra
+primordial power still comes through and wins. Hence two regimes and a
+crossover.
+
+**This is a hypothesis, not a measurement.** It is consistent with every
+number above - the near-uniform density drain of section 4, the
+environments of section 6, the matter/flux split of section 7 - but none
+of those tests it directly.
+
+**What decides it: `t7`.** If the large-scale suppression is the baryon
+drain, reinjecting the converted mass must raise the ratio at low k
+towards 1 **while leaving the high-k enhancement intact**. If instead t7
+lifts the whole curve uniformly, or moves the high-k end, the two-regime
+reading is wrong and this section has to be rewritten.
 
 ---
 
@@ -337,6 +443,9 @@ amplitude is **derived from the particle sampling, not fitted**.
 - Raising the threshold tenfold recovers ~1.3% of that deficit.
 - The threshold is referenced to the mean baryon density.
 - The ICs reproduce CDM at the fundamental mode to 1.0002 at z = 3.
+- The P1D ratio is tilted, 0.786 to 1.200 across the band, and no choice
+  of tau_eff removes it - unlike murgia, where the analogous deficit was
+  a tau_eff artefact and did go away.
 - FCT's doomed material is 2.4-2.7x more overdense than CDM's in the ICs.
 
 **Not established, do not quote.**
@@ -344,7 +453,10 @@ amplitude is **derived from the particle sampling, not fitted**.
 - Any converged number for the stage 08 clustering ratio.
 - Which haloes hold the converted particles. The grid cannot answer it.
 - Whether (a) timing or (d) halo mass dominates the residual gap.
-- Whether the 0.86-point scatter in the flux ratio is significant.
+- The significance of anything in the flux ratio, until the t9 jackknife
+  gives error bars.
+- That the tilt survives on SWIFT's own sightlines - it has only ever been
+  measured on relos.py-regenerated rays. See 7b.
 
 **The headline for the paper.** FCT's extra small-scale power drives more
 gas over the QLA threshold, and QLA, having no feedback, removes it
