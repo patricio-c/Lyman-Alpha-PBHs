@@ -55,13 +55,28 @@ Bootstrap over sightlines, never analytic.  Two things make it honest:
     fit.  If there are too few resamples to estimate the covariance
     (n_boot < 3 n_bins) the code falls back to diagonal and says so.
 
-Approximation, stated so it can be checked: the flux rescaling A and the
-global mean flux are held at their full-sample values inside the bootstrap
-rather than re-solved per resample.  A is set by ~10^6 pixels, so it moves
-by ~0.2% under resampling while P1D itself moves by several percent; the
-neglected term adds in quadrature and is invisible.  `--resample-A N`
-re-solves A on N resamples and prints the comparison, which is the check
-that this paragraph is true rather than plausible.
+Approximation, and its MEASURED FAILURE.  By default the flux rescaling A
+and the global mean flux are held at their full-sample values inside the
+bootstrap rather than re-solved per resample.  This file originally
+claimed A would move by ~0.2%, far below the scatter of P1D itself, so
+that the neglected term was invisible.  `--resample-A` was written to
+check that claim and the claim did not survive it: on the 40 Mpc/h pair
+A moves by 1.15% (CDM) and 0.87% (FCT) against a P1D bootstrap scatter of
+1.27%.  Comparable, not negligible.  The frozen-A errors are therefore
+UNDERESTIMATED by a factor that has to be measured, not assumed.
+
+`--exact-boot N` does the honest thing: it re-solves A and recomputes the
+per-sightline spectra inside each of N resamples, reports the inflation
+factor against the frozen-A errors, and uses the exact errors for
+everything downstream -- the table, the covariance, the fits and the
+figure.  It costs about a second per resample, so a few hundred is the
+practical range; that is enough to measure the inflation even when it is
+too few for a full covariance, in which case the code falls back to
+diagonal and says so.
+
+**No chi^2 from this stage should be quoted outside this repository unless
+it came from an --exact-boot run.**  The stage prints a warning at the end
+when it did not.
 
 Precondition
 ------------
@@ -87,7 +102,10 @@ Options
     --window desi|all      k range used for the FITS (default desi)
     --kmax-mpc X           filtering-scale cutoff [Mpc^-1], enables M1
     --unpaired             also report unpaired errors
-    --resample-A N         re-solve A on N resamples as a check
+    --resample-A N         re-solve A on N resamples as a check only
+    --exact-boot N         re-solve A INSIDE N resamples and use those
+                           errors for the table, covariance, fits and
+                           figure. Required for any quotable chi^2.
     --seed S               bootstrap seed (default 20260908)
     --out PREFIX           writes PREFIX.png, PREFIX.txt and PREFIX_boot.npz
 """
@@ -171,6 +189,22 @@ def hartlap(nboot, nbins):
     return num / (nboot - 1.0)
 
 
+def solve_A_near(tau, target, A0):
+    """
+    solve_A bracketed tightly around a known solution.
+
+    Inside a bootstrap the resample's A sits within a percent or so of the
+    full-sample value, so a tight bracket cuts brentq from ~40 evaluations
+    to ~15 and each evaluation is an exp() over three million pixels.  The
+    fallback exists because a pathological resample can push the solution
+    outside the bracket, and a slow correct answer beats a fast crash.
+    """
+    try:
+        return solve_A(tau, target, lo=0.6 * A0, hi=1.7 * A0)
+    except ValueError:
+        return solve_A(tau, target)
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -186,6 +220,7 @@ def main():
     ap.add_argument("--kmax-mpc", type=float, default=None)
     ap.add_argument("--unpaired", action="store_true")
     ap.add_argument("--resample-A", type=int, default=0)
+    ap.add_argument("--exact-boot", type=int, default=0)
     ap.add_argument("--seed", type=int, default=20260908)
     ap.add_argument("--out", default="figures/dp1d")
     args = ap.parse_args()
@@ -290,6 +325,33 @@ def main():
             "approximation to hold")
         say()
 
+    # --- the honest bootstrap, if asked for ---------------------------------
+    exact = False
+    if args.exact_boot:
+        say(f"exact bootstrap: {args.exact_boot} resamples with A re-solved "
+            f"and the spectra recomputed")
+        be = np.empty((args.exact_boot, nb))
+        br = np.empty((args.exact_boot, nb))
+        for i in range(args.exact_boot):
+            idx = rng.integers(0, n_los, n_los)
+            ta, tb = a.tau[idx], b.tau[idx]
+            _, ra = per_los_pk(flux(ta, solve_A_near(ta, target, A_a)), a.dv)
+            _, rb = per_los_pk(flux(tb, solve_A_near(tb, target, A_b)), b.dv)
+            _, ea, _ = bin_rows(k, ra, args.nbins, k[1], k_nyq)
+            _, eb, _ = bin_rows(k, rb, args.nbins, k[1], k_nyq)
+            pa, pb = ea.mean(axis=0), eb.mean(axis=0)
+            be[i] = pb - pa
+            br[i] = pb / pa
+        se = be.std(axis=0, ddof=1)
+        infl = se / np.maximum(sd, 1e-300)
+        say(f"  error inflation over the frozen-A bootstrap: "
+            f"median {float(np.median(infl)):.2f}x, "
+            f"range {float(infl.min()):.2f} - {float(infl.max()):.2f}")
+        say("  everything below uses these errors, not the frozen-A ones.")
+        boot_d, sd, sr = be, se, br.std(axis=0, ddof=1)
+        exact = True
+        say()
+
     # --- the table ---------------------------------------------------------
     say(f"{'k [s/km]':>10s} {'k [1/Mpc]':>10s} {'P_' + lab_a:>12s} "
         f"{'DP1D':>12s} {'err':>10s} {'DP/err':>8s} "
@@ -326,17 +388,19 @@ def main():
     if nf < 4:
         raise SystemExit("fewer than 4 bins in the fit window; widen it")
 
+    nb_used = boot_d.shape[0]
     C = np.cov(boot_d[:, fm], rowvar=False)
-    h = hartlap(args.nboot, nf)
-    if h is None or args.nboot < 3 * nf:
-        say(f"  n_boot = {args.nboot} is too few for a {nf}x{nf} covariance; "
+    h = hartlap(nb_used, nf)
+    if h is None or nb_used < 3 * nf:
+        say(f"  n_boot = {nb_used} is too few for a {nf}x{nf} covariance; "
             f"falling back to DIAGONAL errors. chi2 below is optimistic.")
         Cinv = np.diag(1.0 / sd[fm] ** 2)
         used_cov = "diagonal"
     else:
         Cinv = h * np.linalg.inv(C)
         used_cov = f"full, Hartlap factor {h:.4f}"
-    say(f"  covariance: {used_cov}")
+    say(f"  covariance: {used_cov}   "
+        f"errors: {'exact' if exact else 'frozen A (provisional)'}")
     dc = np.diag(C)
     off = C / np.sqrt(np.outer(dc, dc))
     say(f"  median |correlation| between neighbouring bins: "
@@ -425,6 +489,14 @@ def main():
         say(f"  the ratio denominator therefore behaves as k^{p[0]:.2f}")
     say()
 
+    if not exact:
+        say("WARNING: these errors froze A at its full-sample value, an "
+            "approximation this stage has already measured to be invalid "
+            "(see --resample-A).")
+        say("         Every chi2 above is therefore provisional. Re-run with "
+            "--exact-boot 300 before quoting any of them.")
+        say()
+
     # --- figure -------------------------------------------------------------
     try:
         import matplotlib
@@ -449,7 +521,8 @@ def main():
         ax.set(xscale="log", ylabel=r"$\Delta P_{\rm 1D}$  [km s$^{-1}$]",
                title=(f"$z={a.z:.1f}$, "
                       rf"$\tau_{{\rm eff}}={target:.5f}$, "
-                      f"{args.nboot} paired bootstraps"))
+                      f"{boot_d.shape[0]} "
+                      f"{'exact' if exact else 'frozen-A'} bootstraps"))
         ax.legend(frameon=False, fontsize=9, loc="best")
         ax.grid(alpha=0.2, which="both")
 
@@ -482,7 +555,8 @@ def main():
     np.savez_compressed(
         args.out + "_boot.npz", k=kb, P_ref=Pa, P_test=Pb, dP=dP, ratio=R,
         err_dP=sd, err_ratio=sr, boot_dP=boot_d.astype(np.float32),
-        fit_mask=fm, z=a.z, tau_eff_target=target, A_ref=A_a, A_test=A_b)
+        fit_mask=fm, z=a.z, tau_eff_target=target, A_ref=A_a, A_test=A_b,
+        exact_bootstrap=exact, n_boot=boot_d.shape[0])
     print(f"written -> {args.out}_boot.npz")
 
 
