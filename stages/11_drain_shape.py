@@ -112,6 +112,7 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import prov  # noqa: E402
 from common import units  # noqa: E402
 
 
@@ -227,7 +228,7 @@ def main():
     ap.add_argument("--out", default="figures/drain")
     args = ap.parse_args()
 
-    log = []
+    log = list(prov.header(inputs=[args.boot_npz, args.pk_ref, args.pk_test]))
 
     def say(s=""):
         print(s)

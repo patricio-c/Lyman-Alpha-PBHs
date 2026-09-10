@@ -46,6 +46,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import prov  # noqa: E402
 from common import cache as cachelib, units  # noqa: E402
 from common.p1d import (logbin, nyquist_cut, p1d_from_tau,  # noqa: E402
                         tau_eff)
@@ -74,7 +75,7 @@ def main():
     if len(labels) != len(args.caches):
         raise SystemExit("--labels must have one entry per cache")
 
-    log = []
+    log = list(prov.header(inputs=args.caches))
 
     def say(s=""):
         print(s)

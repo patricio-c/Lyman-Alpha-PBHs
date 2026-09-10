@@ -81,6 +81,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import prov  # noqa: E402
 from common import runs  # noqa: E402
 
 RHO_CRIT0_CGS = 1.8788e-29        # g/cm^3, times h^2
@@ -218,7 +219,7 @@ def main():
     if args.snaps and len(args.snaps) != len(args.runs):
         raise SystemExit("--snaps must have one entry per run")
 
-    log = []
+    log = list(prov.header())
 
     def say(s=""):
         print(s, flush=True)

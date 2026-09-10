@@ -42,6 +42,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import prov  # noqa: E402
 from common import cache as cachelib, units  # noqa: E402
 from common.p1d import flux, solve_A, xi_from_flux  # noqa: E402
 
@@ -73,7 +74,7 @@ def main():
 
     labels = args.labels or [os.path.basename(p).replace("cache_", "")
                              .replace(".npz", "") for p in args.caches]
-    log = []
+    log = list(prov.header())
 
     def say(s=""):
         print(s)

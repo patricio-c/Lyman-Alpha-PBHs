@@ -119,6 +119,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import prov  # noqa: E402
 from common import cache as cachelib, units  # noqa: E402
 from common.p1d import flux, solve_A, tau_eff  # noqa: E402
 
@@ -229,7 +230,7 @@ def main():
         os.path.basename(p).replace("cache_", "").replace(".npz", "")
         for p in (args.cache_ref, args.cache_test)]
 
-    log = []
+    log = list(prov.header(inputs=[args.cache_ref, args.cache_test]))
 
     def say(s=""):
         print(s)

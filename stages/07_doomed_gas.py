@@ -87,6 +87,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import prov  # noqa: E402
 
 RHO_CRIT0_CGS = 1.8788e-29        # g/cm^3, times h^2
 D_LO, D_HI = 1e-2, 1e6
@@ -265,7 +266,7 @@ def main():
     if len(labels) != len(args.early):
         raise SystemExit("--labels must have one entry per run")
 
-    log = []
+    log = list(prov.header())
 
     def say(s=""):
         print(s, flush=True)

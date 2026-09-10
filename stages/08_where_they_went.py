@@ -82,6 +82,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import prov  # noqa: E402
 
 D_LO, D_HI, NB = 1e-2, 1e6, 160
 
@@ -251,7 +252,7 @@ def main():
         raise SystemExit("--labels must have one entry per run")
 
     rng = np.random.default_rng(args.seed)
-    log = []
+    log = list(prov.header())
 
     def say(s=""):
         print(s, flush=True)

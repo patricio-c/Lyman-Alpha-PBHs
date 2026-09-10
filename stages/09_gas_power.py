@@ -99,6 +99,7 @@ import h5py
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import prov  # noqa: E402
 
 try:
     import MAS_library as MASL
@@ -192,7 +193,7 @@ def main():
     ap.add_argument("--out", default="figures/pk_gas")
     args = ap.parse_args()
 
-    log = []
+    log = list(prov.header())
 
     def say(s=""):
         print(s, flush=True)
