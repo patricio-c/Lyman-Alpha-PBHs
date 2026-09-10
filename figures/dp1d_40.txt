@@ -1,0 +1,67 @@
+==========================================================================
+Stage 10 - additive difference, bootstrap errors, and model fits
+==========================================================================
+reference : CDM   cache/cache_cdm.npz
+test      : FCT   cache/cache_fct.npz
+z = 3.0000   dv = 2.19625 km/s   n_los = 1536   n_pix = 2048
+common tau_eff target = 0.42461
+       CDM  A = 1.000011   tau_eff out = 0.424610
+       FCT  A = 1.090577   tau_eff out = 0.424610
+
+bootstrap: 2000 paired resamples of 1536 sightlines, seed 20260908
+
+exact bootstrap: 300 resamples with A re-solved and the spectra recomputed
+  error inflation over the frozen-A bootstrap: median 1.00x, range 0.90 - 1.09
+  everything below uses these errors, not the frozen-A ones.
+
+  k [s/km]  k [1/Mpc]        P_CDM         DP1D        err   DP/err    ratio      err
+   0.00140     0.1070  4.99444e+01 -1.26113e+01  6.858e-01   -18.39   0.7475   0.0106
+   0.00279     0.2140  4.24969e+01 -9.49945e+00  6.108e-01   -15.55   0.7765   0.0118
+   0.00419     0.3209  3.54027e+01 -5.70852e+00  4.721e-01   -12.09   0.8388   0.0120
+   0.00559     0.4279  3.32926e+01 -4.73471e+00  4.848e-01    -9.77   0.8578   0.0133
+   0.00768     0.5884  2.63787e+01 -2.38378e+00  3.016e-01    -7.90   0.9096   0.0108
+   0.01048     0.8023  2.35925e+01 -1.67482e+00  2.651e-01    -6.32   0.9290   0.0107
+   0.01467     1.1233  1.81054e+01  1.08267e-01  1.607e-01     0.67   1.0060   0.0089
+   0.02026     1.5512  1.30563e+01  8.37459e-01  1.321e-01     6.34   1.0641   0.0104
+   0.02724     2.0861  9.38201e+00  1.26022e+00  8.627e-02    14.61   1.1343   0.0100
+   0.03702     2.8349  5.80584e+00  9.93942e-01  5.401e-02    18.40   1.1712   0.0100
+   0.05099     3.9047  2.94893e+00  5.89381e-01  2.497e-02    23.61   1.1999   0.0089
+   0.06985     5.3489  1.14526e+00  2.31754e-01  1.050e-02    22.06   1.2024   0.0099
+   0.09499     7.2745  3.53976e-01  7.55384e-02  3.234e-03    23.36   1.2134   0.0099
+   0.12991     9.9490  8.35387e-02  2.26288e-02  8.774e-04    25.79   1.2709   0.0120
+   0.17811    13.6397  1.55345e-02  2.32302e-03  1.765e-04    13.16   1.1495   0.0121
+   0.24306    18.6142  1.79021e-03  1.88727e-04  3.621e-05     5.21   1.1054   0.0209
+   0.33177    25.4074  1.24906e-04  6.23358e-05  7.330e-06     8.50   1.4991   0.0653
+   0.45400    34.7680  6.98520e-06  1.11371e-05  1.230e-06     9.06   2.5944   0.2409
+   0.62023    47.4984  4.41801e-07  9.58174e-07  1.278e-07     7.50   3.1688   0.4665
+
+ratio crosses 1 at k = 0.01429 s/km = 1.094 Mpc^-1
+
+fit window (desi): 0.00100 - 0.03185 s/km, 9 of 19 bins
+  covariance: full, Hartlap factor 0.9666   errors: exact
+  median |correlation| between neighbouring bins: 0.065
+
+M0  DP1D = c
+    c        = -3.51709e-01 +- 4.821e-02 km/s
+    chi2/dof = 1347.90 / 8 = 168.488
+
+M1  skipped: needs --kmax-mpc from the pressure filtering scale.
+    k_max is physics, not a knob; it is not invented here.
+    Note that for k << k_max, M1 is M0 with a different name.
+
+M2  DP1D = -f P1D_CDM + c
+    f        = 0.26958 +- 0.00757   (drain fraction)
+    c        = 4.08723e+00 +- 1.337e-01 km/s   (boost)
+    chi2/dof = 80.66 / 7 = 11.522
+    predicted sign change where P1D_CDM = 1.51616e+01
+    i.e. at k = 0.01748 s/km
+    measured crossing      k = 0.01429 s/km   -> INCONSISTENT
+
+M0 vs M2: delta chi2 = 1267.24 for 1 extra parameter
+  -> the two-regime model is preferred at >3 sigma. The difference is NOT a single constant, so the white-noise
+     prediction alone does not describe this pair.
+
+effective slope of P1D_CDM in the window: n_eff = -0.5544
+  implied 3D slope n_3D = n_eff - 2 = -2.5544
+  the ratio denominator therefore behaves as k^-0.55
+

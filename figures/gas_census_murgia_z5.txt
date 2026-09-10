@@ -1,0 +1,129 @@
+==========================================================================
+Stage 06 - gas census in the (Delta, T) plane    z = 5.0
+==========================================================================
+
+Delta here is rho_gas / rho_baryon(cosmic mean), from Omega_b.
+The line marked at Delta = 1000 assumes SWIFT's
+QLAStarFormation:over_density is defined against the mean BARYON
+density.  This run settles that empirically - no source-diving
+needed.  Read the cumulative table below and find where the gas
+stops existing.  If it stops just above the threshold, the
+criterion is baryon-referenced, as assumed here.  If gas survives
+out to ~6.33x the threshold (= Omega_m / Omega_b), it is referenced
+to the mean TOTAL MATTER density and every Delta quoted here has to
+be divided by 6.33.
+
+[cdm] /data/contrib/pad_140/pcolazo/lyman/murgia/cdm/murgia-cdm-lyman_0002/murgia-cdm-lyman_0002.hdf5
+       z = 5.0000   Omega_b = 0.04859   h = 0.67740
+       gas particles 124,664,686   mean rho_b = 9.0493e-29 g/cm^3
+       used_parameters.yml, star formation block:
+         QLACooling:
+           dir_name: ../../UV_dust1_CR1_G1_shield1.hdf5
+           H_reion_z: 9.0
+           H_reion_eV_p_H: 2.0
+           He_reion_z_centre: 3.0
+           He_reion_z_sigma: 0.5
+           He_reion_eV_p_H: 2.0
+           rapid_cooling_threshold: 0.333333
+         QLAStarFormation:
+           over_density: 1000
+         QLAEntropyFloor:
+           density_threshold_H_p_cm3: 0.1
+           over_density_threshold: 10.
+           temperature_norm_K: 8000
+
+[M2] /data/contrib/pad_140/pcolazo/lyman/murgia/M2/murgia-M2-lyman_0002/murgia-M2-lyman_0002.hdf5
+       z = 5.0000   Omega_b = 0.04859   h = 0.67740
+       gas particles 123,838,499   mean rho_b = 9.0493e-29 g/cm^3
+       used_parameters.yml, star formation block:
+         QLACooling:
+           dir_name: ../../UV_dust1_CR1_G1_shield1.hdf5
+           H_reion_z: 9.0
+           H_reion_eV_p_H: 2.0
+           He_reion_z_centre: 3.0
+           He_reion_z_sigma: 0.5
+           He_reion_eV_p_H: 2.0
+           rapid_cooling_threshold: 0.333333
+         QLAStarFormation:
+           over_density: 1000
+         QLAEntropyFloor:
+           density_threshold_H_p_cm3: 0.1
+           over_density_threshold: 10.
+           temperature_norm_K: 8000
+
+[M3] /data/contrib/pad_140/pcolazo/lyman/murgia/M3/murgia-M3-lyman_0002/murgia-M3-lyman_0002.hdf5
+       z = 5.0000   Omega_b = 0.04859   h = 0.67740
+       gas particles 113,403,060   mean rho_b = 9.0493e-29 g/cm^3
+       used_parameters.yml, star formation block:
+         QLACooling:
+           dir_name: ../../UV_dust1_CR1_G1_shield1.hdf5
+           H_reion_z: 9.0
+           H_reion_eV_p_H: 2.0
+           He_reion_z_centre: 3.0
+           He_reion_z_sigma: 0.5
+           He_reion_eV_p_H: 2.0
+           rapid_cooling_threshold: 0.333333
+         QLAStarFormation:
+           over_density: 1000
+         QLAEntropyFloor:
+           density_threshold_H_p_cm3: 0.1
+           over_density_threshold: 10.
+           temperature_norm_K: 8000
+
+--------------------------------------------------------------------------
+SURVIVING GAS MASS, as a fraction of the reference run's total
+--------------------------------------------------------------------------
+run          M_gas / M_gas(ref)   missing vs ref
+cdm                     1.00000            0.00%
+M2                      0.99362            0.64%
+M3                      0.91345            8.66%
+
+--------------------------------------------------------------------------
+CUMULATIVE GAS MASS ABOVE Delta   (fraction of cdm total)
+--------------------------------------------------------------------------
+   Delta >          cdm           M2           M3      missing
+         1      0.64761      0.66338      0.64322      0.00439
+        10      0.12639      0.12375      0.10517      0.02122
+       100      0.02699      0.02670      0.02406      0.00294
+      1000      0.00094      0.00090      0.00068      0.00026  <- threshold
+      3000      0.00000      0.00000      0.00000      0.00000
+     1e+04      0.00000      0.00000      0.00000      0.00000
+     1e+05      0.00000      0.00000      0.00000      0.00000
+
+--------------------------------------------------------------------------
+WHERE THE MISSING GAS SITS  (reference minus last run, per decade)
+--------------------------------------------------------------------------
+net missing mass = 0.08655 of cdm   (lost 0.11678, gained back 0.03023)
+[!] the comparison run has MORE gas than the reference in some
+    bins.  The shares below are SIGNED fractions of the NET
+    loss; a negative share means the model piled gas UP in that
+    decade instead of losing it.  Shares can exceed 100%.
+       decade in Delta  signed share of the net loss
+      0.01 - 1                                 95.7%
+         1 - 10                               -19.2%
+        10 - 100                               20.3%
+       100 - 1000                               3.0%
+      1000 - 3000                               0.2%
+      3000 - 1e+04                              0.0%
+     1e+04 - 1e+05                              0.0%
+     1e+05 - 1e+06                              0.0%
+
+below the threshold            99.8%   (moved, not converted - the runs differ dynamically too)
+within a factor 3 above it      0.2%
+    [!] that last number CANNOT decide whether raising the
+        threshold would help.  Conversion is a SINK, so the
+        standing occupancy above it is near zero in every run
+        by construction - those bins are censored.  Use the
+        extrapolation below, which is the honest way to ask.
+
+--------------------------------------------------------------------------
+WOULD A HIGHER THRESHOLD PUT THE GAS BACK?   (extrapolation)
+--------------------------------------------------------------------------
+Not a measurement: the bins above the threshold are censored by the
+conversion sink.  This continues the uncensored decade ratio.
+  [cdm] decade ratio 0.1864   100-1000: observed 0.02556 vs uncensored guess 0.01764  (-45% censored)
+        gas a ten-times-higher threshold could keep: ~0.00329 of cdm total
+  [M2] decade ratio 0.1756   100-1000: observed 0.02533 vs uncensored guess 0.01620  (-56% censored)
+        gas a ten-times-higher threshold could keep: ~0.00284 of cdm total
+  [M3] decade ratio 0.1469   100-1000: observed 0.02296 vs uncensored guess 0.01132  (-103% censored)
+        gas a ten-times-higher threshold could keep: ~0.00166 of cdm total

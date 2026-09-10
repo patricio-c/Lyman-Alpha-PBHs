@@ -1,0 +1,45 @@
+==========================================================================
+Stage 08 - where the converted particles ended up
+==========================================================================
+
+Delta is measured on a CIC grid of ALL the matter at the LATE
+snapshot, in units of its own mean, and sampled at the converted
+particles' positions. The reference is a random sample of
+PartType1 measured on the same grid with the same kernel.
+
+[cdm]  z = 10.0000 -> 5.0000
+       identifying the converted particles ...
+       converted between these epochs: 9,052,969
+       locating them in PartType1 ...
+       found 9,052,969 of 9,052,969 in PartType1  (100.00%)
+       building the 256^3 matter field ...
+       box 29.5247, cell 0.11533 (same length units)
+       sampling the reference ...
+
+[M3]  z = 10.0000 -> 5.0000
+       identifying the converted particles ...
+       converted between these epochs: 14,206,930
+       locating them in PartType1 ...
+       found 14,206,930 of 14,206,930 in PartType1  (100.00%)
+       building the 256^3 matter field ...
+       box 29.5247, cell 0.11533 (same length units)
+       sampling the reference ...
+
+--------------------------------------------------------------------------
+WHERE THE CONVERTED PARTICLES SIT, at the late snapshot
+--------------------------------------------------------------------------
+run       median Delta   reference    ratio   % >100   % >1000   % >1e4
+cdm             56.396       2.034   27.728   30.95%     0.11%    0.00%
+M3              22.663       3.117    7.270   15.57%     0.06%    0.00%
+
+The 'reference' column is the median Delta of ordinary PartType1 on
+the same grid.  The ratio is the whole result: near 1 means the
+converted particles are dynamically indistinguishable from the rest
+of the matter and asking which haloes hold them is the wrong
+question; well above 1 means they really are locked in collapsed
+structure.
+
+Delta saturates at the cell scale, so nothing above roughly the
+density of a halo filling one cell is resolved.  Cell sizes are
+printed per run above; raise --ngrid to lower that floor and check
+the ratio is stable before quoting it.

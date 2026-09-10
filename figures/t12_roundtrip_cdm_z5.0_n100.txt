@@ -1,0 +1,44 @@
+========================================================================
+T12 - does our LOS regeneration reproduce SWIFT's own output?
+========================================================================
+--- file A (the reference) ---------------------------------------------
+  file        /data/contrib/pad_140/pcolazo/lyman/murgia/cdm/los_0003.hdf5
+  sightlines  100
+  z           5.00000   box = 29.52465 internal   kernel gamma = 1.825742
+  axes        [2]
+  fields      ['Coordinates', 'Densities', 'DiffusionParameters', 'Entropies', 'InternalEnergies', 'LaplacianInternalEnergies', 'Masses', 'ParticleIDs', 'Potentials', 'Pressures', 'ProgenitorParticleIDs', 'SmoothingLengths', 'Softenings', 'SplitCounts', 'SplitTrees', 'Temperatures', 'Velocities', 'VelocityDivergenceTimeDifferentials', 'VelocityDivergences', 'ViscosityParameters']
+  ParticleIDs present
+  particles per LOS   min 5858  median 6695  max 7766  total 671977
+  rays along axis 2  n = 100    [0.1299, 29.2400] x [0.4021, 29.2657]   96.4% of the face
+  all rays pooled     [0.1299, 29.2400] x [0.4021, 29.2657]   of a 29.5247 box   -> 96.4% coverage
+
+--- file B (the regeneration) -----------------------------------------
+  file        data/regen_cdm_z5.0_n100.hdf5
+  sightlines  100
+  z           5.00000   box = 29.52465 internal   kernel gamma = 1.825742
+  axes        [2]
+  fields      ['Coordinates', 'Densities', 'DiffusionParameters', 'Entropies', 'InternalEnergies', 'LaplacianInternalEnergies', 'Masses', 'ParticleIDs', 'Potentials', 'Pressures', 'ProgenitorParticleIDs', 'SmoothingLengths', 'Softenings', 'SplitCounts', 'SplitTrees', 'Temperatures', 'Velocities', 'VelocityDivergenceTimeDifferentials', 'VelocityDivergences', 'ViscosityParameters']
+  ParticleIDs present
+  particles per LOS   min 5858  median 6695  max 7766  total 671980
+  rays along axis 2  n = 100    [0.1299, 29.2400] x [0.4021, 29.2657]   96.4% of the face
+  all rays pooled     [0.1299, 29.2400] x [0.4021, 29.2657]   of a 29.5247 box   -> 96.4% coverage
+
+--- structure ----------------------------------------------------------
+  OK   100 sightlines, same names, same box, same z
+  OK   ray positions identical, max offset 0.000e+00
+
+--- particle counts ----------------------------------------------------
+  identical on 97/100 sightlines (97.00%)
+  count difference B-A   min 0  median 0  max 1
+  total A 671977   total B 671980   ratio 1.000004
+
+--- particle identity, the actual test ---------------------------------
+  sightlines whose particle set matches exactly: 97/100 (97.00%)
+  particles only in A (SWIFT, missed by us): 0
+  particles only in B (ours, SWIFT did not have): 3
+  worst relative field difference on shared particles: 0.000e+00  ()
+
+--- verdict ------------------------------------------------------------
+  FAIL. Do not use relos.py output as if it were SWIFT's until
+  this is understood. The numbers above say which of the three
+  it is: wrong rays, wrong selection, or wrong values.

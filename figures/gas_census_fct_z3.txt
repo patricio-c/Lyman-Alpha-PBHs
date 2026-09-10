@@ -1,0 +1,103 @@
+==========================================================================
+Stage 06 - gas census in the (Delta, T) plane    z = 3.0
+==========================================================================
+
+Delta here is rho_gas / rho_baryon(cosmic mean), from Omega_b.
+The line marked at Delta = 1000 assumes SWIFT's
+QLAStarFormation:over_density is defined against the mean BARYON
+density.  This run settles that empirically - no source-diving
+needed.  Read the cumulative table below and find where the gas
+stops existing.  If it stops just above the threshold, the
+criterion is baryon-referenced, as assumed here.  If gas survives
+out to ~6.33x the threshold (= Omega_m / Omega_b), it is referenced
+to the mean TOTAL MATTER density and every Delta quoted here has to
+be divided by 6.33.
+
+[CDM] /data/contrib/pad_140/pcolazo/lyman/cdm-box-40-1024/cdm-40-m6-lyman_0003/cdm-40-m6-lyman_0003.hdf5
+       z = 3.0000   Omega_b = 0.04860   h = 0.68100
+       gas particles 115,318,346   mean rho_b = 2.7101e-29 g/cm^3
+       used_parameters.yml, star formation block:
+         QLACooling:
+           dir_name: ../UV_dust1_CR1_G1_shield1.hdf5
+           H_reion_z: 7.5
+           H_reion_eV_p_H: 2.0
+           He_reion_z_centre: 3.0
+           He_reion_z_sigma: 0.5
+           He_reion_eV_p_H: 2.0
+           rapid_cooling_threshold: 0.333333
+         QLAStarFormation:
+           over_density: 1000
+         QLAEntropyFloor:
+           density_threshold_H_p_cm3: 0.1
+           over_density_threshold: 10.
+           temperature_norm_K: 8000
+
+[FCT] /data/contrib/pad_140/pcolazo/lyman/2-fct-box-40-1024/fct-40-m6-lyman_0003/fct-40-m6-lyman_0003.hdf5
+       z = 3.0000   Omega_b = 0.04860   h = 0.68100
+       gas particles 67,341,600   mean rho_b = 2.7101e-29 g/cm^3
+       used_parameters.yml, star formation block:
+         QLACooling:
+           dir_name: ../UV_dust1_CR1_G1_shield1.hdf5
+           H_reion_z: 7.5
+           H_reion_eV_p_H: 2.0
+           He_reion_z_centre: 3.0
+           He_reion_z_sigma: 0.5
+           He_reion_eV_p_H: 2.0
+           rapid_cooling_threshold: 0.333333
+         QLAStarFormation:
+           over_density: 1000
+         QLAEntropyFloor:
+           density_threshold_H_p_cm3: 0.1
+           over_density_threshold: 10.
+           temperature_norm_K: 8000
+
+--------------------------------------------------------------------------
+SURVIVING GAS MASS, as a fraction of the reference run's total
+--------------------------------------------------------------------------
+run          M_gas / M_gas(ref)   missing vs ref
+CDM                     1.00000            0.00%
+FCT                     0.59582           40.42%
+
+--------------------------------------------------------------------------
+CUMULATIVE GAS MASS ABOVE Delta   (fraction of CDM total)
+--------------------------------------------------------------------------
+   Delta >          CDM          FCT      missing
+         1      0.67989      0.42113      0.25876
+        10      0.20642      0.13414      0.07228
+       100      0.04693      0.03416      0.01276
+      1000      0.00068      0.00027      0.00041  <- threshold
+      3000      0.00000      0.00000      0.00000
+     1e+04      0.00000      0.00000      0.00000
+     1e+05      0.00000      0.00000      0.00000
+
+--------------------------------------------------------------------------
+WHERE THE MISSING GAS SITS  (reference minus last run, per decade)
+--------------------------------------------------------------------------
+net missing mass = 0.40418 of CDM   (lost 0.41017, gained back 0.00599)
+       decade in Delta  signed share of the net loss
+      0.01 - 1                                 37.4%
+         1 - 10                                45.6%
+        10 - 100                               14.0%
+       100 - 1000                               3.0%
+      1000 - 3000                               0.0%
+      3000 - 1e+04                              0.0%
+     1e+04 - 1e+05                              0.0%
+     1e+05 - 1e+06                              0.0%
+
+below the threshold           100.0%   (moved, not converted - the runs differ dynamically too)
+within a factor 3 above it      0.0%
+    [!] that last number CANNOT decide whether raising the
+        threshold would help.  Conversion is a SINK, so the
+        standing occupancy above it is near zero in every run
+        by construction - those bins are censored.  Use the
+        extrapolation below, which is the honest way to ask.
+
+--------------------------------------------------------------------------
+WOULD A HIGHER THRESHOLD PUT THE GAS BACK?   (extrapolation)
+--------------------------------------------------------------------------
+Not a measurement: the bins above the threshold are censored by the
+conversion sink.  This continues the uncensored decade ratio.
+  [CDM] decade ratio 0.3279   100-1000: observed 0.04504 vs uncensored guess 0.05027  (+10% censored)
+        gas a ten-times-higher threshold could keep: ~0.01648 of CDM total
+  [FCT] decade ratio 0.3423   100-1000: observed 0.03282 vs uncensored guess 0.03316  (+1% censored)
+        gas a ten-times-higher threshold could keep: ~0.01135 of CDM total

@@ -1,0 +1,130 @@
+--------------------------------------------------------------------------
+command : stages/11_drain_shape.py figures/dp1d_40_boot.npz figures/pk_z3_CDM.txt figures/pk_z3_FCT.txt --diagnose --out figures/drain_40
+git     : 83c7e876311d409323720413089f0399b1c51d49-dirty
+host    : snmgt01    run at 2026-09-10T10:45:50-0300
+python  : 3.11.15   numpy 2.4.5
+cwd     : /data/contrib/pad_140/pcolazo/Lyman-Alpha-PBHs
+input   : figures/dp1d_40_boot.npz  [5fd8ef632ce43872, 25518 bytes]
+input   : figures/pk_z3_CDM.txt  [952eaa2b5db847c8, 88829 bytes]
+input   : figures/pk_z3_FCT.txt  [14f8104a65b8d2a0, 88828 bytes]
+--------------------------------------------------------------------------
+==========================================================================
+Stage 11 - the 3D gas difference, propagated into P1D
+==========================================================================
+P1D   : figures/dp1d_40_boot.npz   z = 3.0000   exact bootstrap
+P3D   : figures/pk_z3_CDM.txt  [CDM]
+        figures/pk_z3_FCT.txt  [FCT]
+k conversion at this z: k[s/km] x 76.5820 = k[Mpc^-1]
+
+3D band cut at k = 27.3846 Mpc^-1 [grid Nyquist, grid 512, box 58.7372]
+  keeping 255 of 443 bins; the table runs to 47.4316 Mpc^-1 = 1.732 x the cut
+  the bins above the cut are the CORNERS of the Fourier cube (out to sqrt(3) k_Nyq). They are real modes but poorly sampled and the MAS correction is unreliable there, so they are not used.
+
+measured gas-power suppression  g(k) = 1 - P_gas_test / P_gas_ref
+ k [1/Mpc]    P_gas ref   P_gas test    ratio        g
+    0.1515  3.12677e+02  2.51867e+02   0.8055   0.1945
+    2.6182  1.22941e+00  1.22736e+00   0.9983   0.0017
+    5.0793  3.62987e-01  4.00080e-01   1.1022  -0.1022
+    7.5404  1.61603e-01  1.84369e-01   1.1409  -0.1409
+   10.0012  8.58588e-02  1.00252e-01   1.1676  -0.1676
+   12.4617  5.05543e-02  6.04212e-02   1.1952  -0.1952
+   14.9218  3.22064e-02  3.93789e-02   1.2227  -0.2227
+   17.3824  2.18032e-02  2.77816e-02   1.2742  -0.2742
+   19.8428  1.57487e-02  2.09170e-02   1.3282  -0.3282
+   22.3030  1.19612e-02  1.68464e-02   1.4084  -0.4084
+   24.7634  9.89218e-03  1.47995e-02   1.4961  -0.4961
+   27.3309  9.13581e-03  1.45655e-02   1.5943  -0.5943
+  ratio range over the kept band: 0.7981 (at k = 0.2567) to 1.5943 (at k = 27.3309)
+  g > 0 in 24 bins, g < 0 in 231 bins
+  g CHANGES SIGN near k = 2.725 Mpc^-1: the test run has less gas power at large scales and more at small scales, so a single template mixes the two effects.
+
+FIT-FREE BOUND.  P1D is a positive-kernel integral of P3D, so the
+P1D ratio is a weighted average of the 3D ratio above that k and
+must lie between its extremes there. If the flux were suppressed
+by the same fraction as the gas, every row below would be INSIDE.
+A violation only counts if it is larger than the error on r_1D,
+so the distance outside the band is reported in sigma.
+  k [s/km]  k [1/Mpc]     r_1D     err  min r_3D  max r_3D  n_sigma   verdict
+   0.00140     0.1070   0.7475  0.0106       nan       nan      nan     no 3D
+   0.00279     0.2140   0.7765  0.0118    0.7981    1.5943     1.83   OUTSIDE
+   0.00419     0.3209   0.8388  0.0120    0.8193    1.5943     0.00    inside
+   0.00559     0.4279   0.8578  0.0133    0.8243    1.5943     0.00    inside
+   0.00768     0.5884   0.9096  0.0108    0.8335    1.5943     0.00    inside
+   0.01048     0.8023   0.9290  0.0107    0.8570    1.5943     0.00    inside
+   0.01467     1.1233   1.0060  0.0089    0.8807    1.5943     0.00    inside
+   0.02026     1.5512   1.0641  0.0104    0.9382    1.5943     0.00    inside
+   0.02724     2.0861   1.1343  0.0100    0.9671    1.5943     0.00    inside
+  -> 1 bin(s) outside, worst at 1.8 sigma. SUGGESTIVE, NOT PROOF. Below 3 sigma this is a hint that flux and gas respond differently, not a demonstration.
+     The fitted amplitude is the stronger statement here, because it uses every bin at once.
+     NOTE: the lowest P1D bin (k = 0.1070 Mpc^-1) carries the deepest deficit and CANNOT be tested, because the 3D band starts at 0.1515 Mpc^-1.
+     A 3D measurement reaching lower k would make this test far sharper; that is a box-size question, not an analysis one.
+
+P1D -> P3D by differentiating a smoothing spline (s = 0.002)
+  log-slope range: -9.263 to 0.140
+  1 bins have slope >= 0, so P3D would be negative there. They are at k = 0.1070 Mpc^-1.
+    Those bins take the log-slope of their nearest well-behaved neighbour instead. This is a patch on an endpoint overshoot, not a measurement; if more than one or two bins need it, raise --spline-s.
+  round trip P1D -> P3D -> P1D recovers 1.0302 of P1D (median); tail status ok, slope -8.368
+
+  3 of 19 P1D bins lie outside the kept 3D band [0.152, 27.331] Mpc^-1; g is held flat there.
+  combined g: the integrand changes sign over the top decade, so no power-law tail exists. Truncated; the missing piece is bounded by the excess template.
+  suppression part (g > 0): the weight is zero over the top decade, so the tail is exactly zero. Nothing is being dropped.
+  excess part (g < 0): the integrand changes sign over the top decade, so no power-law tail exists. Truncated; the missing piece is bounded by the excess template.
+
+covariance: full, Hartlap 0.9666, 300 resamples
+
+M2  DP1D = -f P1D_ref + c            (constant fraction)
+    f        =  2.69578e-01 +- 7.573e-03
+    c        =  4.08723e+00 +- 1.337e-01
+    chi2/dof = 80.66 / 7 = 11.522    cond(N) = 2.41e+03
+
+M3  DP1D = alpha T[g] + c            (one combined template)
+    alpha    =  1.89492e+00 +- 5.185e-02
+    c        =  5.36881e-01 +- 5.399e-02
+    chi2/dof = 12.52 / 7 = 1.789    cond(N) = 2.65e+00
+
+M4  DP1D = a_sup T[g+] + a_exc T[g-] + c   (split + constant)
+    a_sup    =  1.89492e+00 +- 5.185e-02
+    a_exc    =  5.80171e-01 +- 2.740e-02
+    c        =  1.18213e+00 +- 5.584e-02
+    chi2/dof = 12.52 / 6 = 2.087    cond(N) = 4.73e+16
+    WARNING: the design is degenerate at this precision. The parameters are not separately determined and the chi2 is not reliable. Read the next model instead.
+
+M5  DP1D = a_sup T[g+] + a_exc T[g-]       (split, NO constant)
+    a_sup    =  1.89492e+00 +- 5.185e-02
+    a_exc    =  2.98884e+00 +- 1.412e-01
+    chi2/dof = 12.52 / 7 = 1.789    cond(N) = 1.77e+01
+
+nesting check: span{T[g], 1} is contained in span{T[g+], T[g-], 1},
+so chi2(M4) <= chi2(M3) must hold as algebra.
+  holds: chi2(M4) = 12.52 <= chi2(M3) = 12.52
+
+M2 -> M3: delta chi2 =    68.14 at equal parameters
+M3 -> M4: delta chi2 =     0.00 for 1 extra parameter
+M3 -> M5: delta chi2 =     0.00 at equal parameters
+
+split-template result taken from M5 (M4 was degenerate)
+  a_sup = 1.8949 +- 0.0519   (flux response to the large-scale gas deficit)
+  a_exc = 2.9888 +- 0.1412   (flux response to the small-scale gas excess)
+  These are separately meaningful only because the template was split: with one template the two responses are forced equal and the single amplitude absorbs both.
+
+The 'is a constant needed' question is answered instead by M5 against M3, since M5 has no constant at all:
+  chi2(M5) = 12.52 / 7   vs   chi2(M3) = 12.52 / 7
+  -> dropping the constant costs nothing. The two measured 3D components account for the P1D difference on their own, with no free additive term.
+
+  k [s/km]         DP1D        err           M2           M3           M5   (d-M5)/e
+   0.00140 -1.26113e+01  6.858e-01 -9.37671e+00 -1.33309e+01 -1.33309e+01       1.05
+   0.00279 -9.49945e+00  6.108e-01 -7.36902e+00 -8.00447e+00 -8.00447e+00      -2.45
+   0.00419 -5.70852e+00  4.721e-01 -5.45657e+00 -5.73502e+00 -5.73502e+00       0.06
+   0.00559 -4.73471e+00  4.848e-01 -4.88775e+00 -4.40002e+00 -4.40002e+00      -0.69
+   0.00768 -2.38378e+00  3.016e-01 -3.02389e+00 -2.81284e+00 -2.81284e+00       1.42
+   0.01048 -1.67482e+00  2.651e-01 -2.27279e+00 -1.48142e+00 -1.48142e+00      -0.73
+   0.01467  1.08267e-01  1.607e-01 -7.93597e-01 -1.65516e-01 -1.65516e-01       1.70
+   0.02026  8.37459e-01  1.321e-01  5.67519e-01  8.40105e-01  8.40105e-01      -0.02
+   0.02724  1.26022e+00  8.627e-02  1.55804e+00  1.31934e+00  1.31934e+00      -0.69
+
+residual signs M2: ---+++++-
+residual signs M3: +-+-+-+--
+residual signs M5: +-+-+-+--
+  a run of like signs means a missing shape, not scatter, whatever
+  the chi2 says. Compare the runs, not just the numbers.
+

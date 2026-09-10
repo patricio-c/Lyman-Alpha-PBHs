@@ -1,0 +1,35 @@
+==========================================================================
+Stage 09 - 3D power spectra    [FCT]   z = 3.0000
+==========================================================================
+box 58.73715 (internal length units; k comes out in their inverse)
+grid 512^3   MAS CIC   ICs at z = 198.0000
+k_fund = 0.106971   k_Nyquist = 27.3846
+
+identifying the converted particles by ID ...
+  converted since the ICs: 66,876,128   (49.83% of the IC gas)
+
+depositing (each field is 0.50 GB) ...
+  gas         67,341,600 particles
+  converted   66,876,128 particles
+  dark       536,870,912 particles
+
+mass fractions   gas 0.081930   converted 0.077618   dark 0.840452
+baryon fraction  0.159548   (Omega_b/Omega_m, a sanity check on the split)
+matter shot noise = 3.080928e-04 (same length units cubed)
+
+computing spectra ...
+  P_gas done
+  P_conv done
+  P_dm done
+  P_matter done
+  P_baryon done
+
+--------------------------------------------------------------------------
+CONTROL: our P_matter against SWIFT's own
+--------------------------------------------------------------------------
+  compared over 126 bins, k = 0.2567 to 13.6379
+  ratio ours/SWIFT   median 1.0013   5th 0.9783   95th 1.0171
+  PASS - the deposit, the MAS correction and the shot-noise subtraction all reproduce SWIFT.
+
+cross spectrum (gas x converted), the last and least important step ...
+  P_gc done

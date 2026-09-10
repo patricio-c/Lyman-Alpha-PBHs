@@ -1,0 +1,55 @@
+==========================================================================
+Stage 07 - the density of the gas that was about to be converted
+==========================================================================
+
+Delta is read at the EARLY snapshot, while the gas was still gas.
+'doomed' = present in PartType0 early, absent from PartType0 late.
+
+[cdm]  z = 10.0000 -> 5.0000
+       IC gas particles: 134,217,728 = 512^3, with 1 DM per gas particle
+       converted by the early snapshot:   0.37%
+       converted by the late  snapshot:   7.12%
+       this stage therefore sees   6.74 points of conversion,
+       i.e. 95% of all the conversion in this run.
+       reading late gas IDs ...
+       scanning early snapshot ...
+       doomed particles 9,052,969 of 133,717,655  (6.77%)
+       doomed gas MASS  6.60% of the early gas mass
+       cross-check: 9,052,969 of 9,052,969 doomed IDs are in PartType1 at the late snapshot  (100.00%)
+
+[M2]  z = 10.0000 -> 5.0000
+       IC gas particles: 134,217,728 = 512^3, with 1 DM per gas particle
+       converted by the early snapshot:   0.58%
+       converted by the late  snapshot:   7.73%
+       this stage therefore sees   7.15 points of conversion,
+       i.e. 92% of all the conversion in this run.
+       reading late gas IDs ...
+       scanning early snapshot ...
+       doomed particles 9,598,419 of 133,436,918  (7.19%)
+       doomed gas MASS  7.01% of the early gas mass
+       cross-check: 9,598,419 of 9,598,419 doomed IDs are in PartType1 at the late snapshot  (100.00%)
+
+[M3]  z = 10.0000 -> 5.0000
+       IC gas particles: 134,217,728 = 512^3, with 1 DM per gas particle
+       converted by the early snapshot:   4.92%
+       converted by the late  snapshot:  15.51%
+       this stage therefore sees  10.58 points of conversion,
+       i.e. 68% of all the conversion in this run.
+       reading late gas IDs ...
+       scanning early snapshot ...
+       doomed particles 14,206,930 of 127,609,990  (11.13%)
+       doomed gas MASS  10.85% of the early gas mass
+       cross-check: 14,206,930 of 14,206,930 doomed IDs are in PartType1 at the late snapshot  (100.00%)
+
+--------------------------------------------------------------------------
+WHERE THE DOOMED GAS WAS, at the early snapshot
+--------------------------------------------------------------------------
+run       median Delta   90th pct  % above 100  % above 1000  % below 10
+cdm             11.995     105.19       10.88%         0.25%      43.67%
+M2              16.158     173.14       15.46%         0.32%      36.13%
+M3              47.213     524.30       38.77%         0.62%      20.32%
+
+Read it like this: if the doomed gas sat at Delta of order 100-1000
+it was already destined and never was forest gas.  If it sat at
+Delta of a few, ordinary IGM is being removed and the threshold is
+a real forest systematic.

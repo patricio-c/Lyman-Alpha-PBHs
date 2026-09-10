@@ -1,0 +1,51 @@
+==========================================================================
+Stage 07 - the density of the gas that was about to be converted
+==========================================================================
+
+Delta is read at the EARLY snapshot, while the gas was still gas.
+'doomed' = present in PartType0 early, absent from PartType0 late.
+
+[CDM]  z = 198.0000 -> 3.0000
+       IC gas particles: 134,217,728 = 512^3, with 4 DM per gas particle
+       converted by the early snapshot:   0.00%
+       converted by the late  snapshot:  14.08%
+       this stage therefore sees  14.08 points of conversion,
+       i.e. 100% of all the conversion in this run.
+       reading late gas IDs ...
+       scanning early snapshot ...
+       doomed particles 18,899,382 of 134,217,728  (14.08%)
+       doomed gas MASS  13.81% of the early gas mass
+
+[FCT]  z = 198.0000 -> 3.0000
+       IC gas particles: 134,217,728 = 512^3, with 4 DM per gas particle
+       converted by the early snapshot:   0.00%
+       converted by the late  snapshot:  49.83%
+       this stage therefore sees  49.83 points of conversion,
+       i.e. 100% of all the conversion in this run.
+       reading late gas IDs ...
+       scanning early snapshot ...
+       doomed particles 66,876,128 of 134,217,728  (49.83%)
+       doomed gas MASS  48.65% of the early gas mass
+
+--------------------------------------------------------------------------
+WHERE THE DOOMED GAS WAS, at the early snapshot
+--------------------------------------------------------------------------
+run       doomed med   surv med  contrast   90th pct   % >100   % >1000    % <10
+CDM           1.0225     0.9954    1.0272     1.0438    0.00%     0.00%  100.00%
+FCT           1.0631     0.9911    1.0726     1.2116    0.00%     0.00%  100.00%
+
+Read it like this: if the doomed gas sat at Delta of order 100-1000
+it was already destined and never was forest gas.  If it sat at
+Delta of a few, ordinary IGM is being removed and the threshold is
+a real forest systematic.
+
+'contrast' is the doomed median over the surviving median at the
+same epoch.  Near the initial conditions that is the only column
+that means anything: Delta is ~1 everywhere and the question is
+whether the material that later converts starts out measurably
+overdense.  Contrast > 1 says yes.
+
+[!] for CDM the middle 80% of the doomed mass
+    spans fewer than 4 bins, so these percentiles are set by the
+    binning, not by the data.  Re-run over the range the gas
+    actually occupies, e.g. --d-lo 0.5 --d-hi 2 --nbins 200.

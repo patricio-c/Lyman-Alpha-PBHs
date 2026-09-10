@@ -1,0 +1,44 @@
+==========================================================================
+Stage 07 - the density of the gas that was about to be converted
+==========================================================================
+
+Delta is read at the EARLY snapshot, while the gas was still gas.
+'doomed' = present in PartType0 early, absent from PartType0 late.
+
+[cdm]  z = 7.0000 -> 5.0000
+       IC gas particles: 134,217,728 = 512^3, with 1 DM per gas particle
+       converted by the early snapshot:   2.86%
+       converted by the late  snapshot:   7.12%
+       this stage therefore sees   4.26 points of conversion,
+       i.e. 60% of all the conversion in this run.
+       reading late gas IDs ...
+       scanning early snapshot ...
+       doomed particles 5,713,807 of 130,378,493  (4.38%)
+       doomed gas MASS  4.29% of the early gas mass
+
+[M3]  z = 7.0000 -> 5.0000
+       IC gas particles: 134,217,728 = 512^3, with 1 DM per gas particle
+       converted by the early snapshot:  11.41%
+       converted by the late  snapshot:  15.51%
+       this stage therefore sees   4.10 points of conversion,
+       i.e. 26% of all the conversion in this run.
+       [!] most of this run's conversion happened BEFORE the
+           early snapshot. What follows describes the tail,
+           not the bulk. Pick an earlier snapshot if one
+           exists.
+       reading late gas IDs ...
+       scanning early snapshot ...
+       doomed particles 5,496,596 of 118,899,656  (4.62%)
+       doomed gas MASS  4.55% of the early gas mass
+
+--------------------------------------------------------------------------
+WHERE THE DOOMED GAS WAS, at the early snapshot
+--------------------------------------------------------------------------
+run       median Delta   90th pct  % above 100  % above 1000  % below 10
+cdm             65.947     540.03       42.23%         0.26%      11.99%
+M3              92.778     607.31       49.66%         0.22%       9.86%
+
+Read it like this: if the doomed gas sat at Delta of order 100-1000
+it was already destined and never was forest gas.  If it sat at
+Delta of a few, ordinary IGM is being removed and the threshold is
+a real forest systematic.
