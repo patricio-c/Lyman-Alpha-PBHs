@@ -1,3 +1,31 @@
+> ## Read this before writing anything down
+>
+> Two documents carry the story, with **opposite rules**. Keeping them
+> separate is the point: a file that tries to do both either rewrites its own
+> history or fills up with claims that are no longer true.
+>
+> - **`docs/LOGBOOK.md` is append-only and is NEVER rewritten.** One short
+>   entry per real step: what was done, why, what came out, what it changed,
+>   and links to the stage and the RESULTS document. It records what was
+>   believed *at the time*, including things later found to be wrong. Wrong
+>   turns stay: the reason a test was run outlives its result, and an error
+>   found once will be found again by whoever does not know it was made.
+>   If you want to edit an old entry, the edit belongs in the narrative.
+>
+> - **`docs/NARRATIVE.md` is ALWAYS rewritten** to reflect current
+>   understanding, and carries no history. It is the current best telling.
+>
+> **Add an entry to the logbook at the end of every session that produced a
+> result, a decision or a mistake.** Rewrite the narrative whenever the
+> understanding it describes has moved.
+>
+> Slides, when needed, are generated FROM the narrative. Do not keep a deck
+> as the record: slides force compression, and the compressed part is exactly
+> the reasoning worth keeping.
+>
+> This repository is public. Strategy, paper scoping and authorship stay out
+> of both files.
+
 # HANDOFF — read this first
 
 You are picking up a scientific analysis repository. This file is the whole
