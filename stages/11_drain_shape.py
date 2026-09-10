@@ -19,12 +19,21 @@ increasing order of how much they let the data speak.
 
     M2   DP1D = -f P1D_ref + c                   constant fraction
     M3   DP1D = alpha T[g] + c                   one measured template
-    M4   DP1D = a_sup T[g+] + a_exc T[g-] + c    split at the sign change
+    M4   DP1D = a_sup T[g+] + a_exc T[g-] + c    split, with a constant
+    M5   DP1D = a_sup T[g+] + a_exc T[g-]        split, no constant
 
-where T[.] is the propagation described below.  M4's constant is the
-interesting one: if it is consistent with zero, the two measured 3D
-components account for the whole P1D difference and nothing else is
-needed.
+where T[.] is the propagation described below.
+
+M4 and M5 exist as a pair for a numerical reason worth knowing before
+reading their output.  T[g-] turns out to be nearly constant across the
+fit window, so in M4 it is almost degenerate with the free constant, the
+normal matrix is close to singular, and the fitted errors come back as
+NaN.  Because g = g+ + g- exactly, span{T[g], 1} is a SUBSPACE of
+span{T[g+], T[g-], 1}, so chi^2(M4) <= chi^2(M3) has to hold as algebra;
+the stage checks that inequality explicitly and says so when it fails,
+which is the signature of the degeneracy rather than of any physics.  M5
+drops the redundant constant and is what the stage reports when M4 is not
+conditioned.
 
 The fit-free bound, which is the strongest thing here
 -----------------------------------------------------
@@ -49,11 +58,16 @@ Two things follow with no fitting and no free parameter.
     in 3D.  It is not an artefact of the integral weighting small scales.
 
 *   If the measured r_1D falls OUTSIDE that band, then flux power and gas
-    power are not suppressed by the same fraction, and no fit can argue
-    that away.  This is the same statement a fitted amplitude away from 1
-    makes, arrived at without a fit.
+    power are not changed by the same fraction, and no fit can argue that
+    away.
 
-The stage prints this test bin by bin before any model is fitted.
+The second point only counts when the violation is larger than the error
+on r_1D, so the distance outside the band is reported in sigma and
+nothing below 3 sigma is called a demonstration.  Note also that the
+lowest P1D bin - the one carrying the deepest deficit, and so the most
+informative - cannot be tested at all when the 3D band starts above it.
+That is a box-size limitation, not an analysis choice, and a 3D
+measurement reaching lower k would sharpen this test considerably.
 
 The propagation
 ---------------
@@ -67,12 +81,20 @@ The propagation
     spline in log-log and the derivative taken from the fit.  Bins whose
     fitted slope comes out >= 0 would give a NEGATIVE P3D, which is a
     corruption inside the integral rather than a small error; they are
-    named, clamped to zero and counted.
+    named and take the log-slope of their nearest well-behaved neighbour,
+    since the bin that needs it is typically the endpoint, where a spline
+    overshoots and where zeroing would throw away real signal.
 
 2.  Weight by g(k) and integrate back.  The one physical assumption,
     stated plainly: the fractional change of flux power at a 3D scale k
     equals the fractional change of gas power at the same k.  Everything
     this stage measures is a test of that assumption.
+
+--diagnose plots the closure of step 1 as the RATIO of the round trip to
+the data, on a linear axis.  Plotting the two curves against each other
+over eight decades of log axis, as an earlier version did, looks perfect
+no matter what: the whole result lives at the percent level and a log
+axis that wide cannot show a percent.
 
 Bands and tails
 ---------------
@@ -86,8 +108,9 @@ The integral itself runs to infinity.  For a 3D slope of -2.55 and a grid
 Nyquist of 27 Mpc^-1 the part above the grid is 5% of the total at the
 bottom of the DESI window and 24% at the top, so truncating tilts the
 result across exactly the band being tested.  The tail is continued as a
-power law fitted to the top decade, which is exact where the power law
-holds and is refused, with the reason named, where it does not.
+power law fitted to the top decade, and each template says which of three
+things happened to it: continued, truncated because the integrand changes
+sign, or exactly zero because the weight had already switched it off.
 
 Usage
 -----
@@ -105,7 +128,7 @@ Options
     --no-extrapolate       truncate the integral at the last measured k
                            instead of continuing the tail. Biases the
                            result; use it to measure that bias.
-    --diagnose             extra panel with the P1D -> P3D -> P1D round trip
+    --diagnose             extra panel with the inversion closure
     --out PREFIX           writes PREFIX.png and PREFIX.txt
 """
 
@@ -216,25 +239,32 @@ def powerlaw_tail(k, P3D, ndec=1.0):
 
         int_{kmax}^inf k P3D dk  =  kmax^2 P_max / |s + 2|
 
-    Three outcomes, and they are genuinely different, which an earlier
-    version of this function got wrong by collapsing two of them into a
-    bare NaN that the caller then misread:
+    Four outcomes, and they are genuinely different, which an earlier
+    version got wrong by collapsing several of them into a bare NaN that
+    the caller then misread:
 
         "ok"          fitted and convergent
+        "zero"        the weight switches the integrand off before the top
+                      of the band, so the tail is exactly zero. This is
+                      the normal case for the suppression template, and it
+                      is not a failure - nothing is being dropped.
         "divergent"   s >= -2, the integral does not converge; the band
                       has not reached the falling regime
-        "unfittable"  the integrand is not positive over the top decade,
-                      so no power law describes it.  This is the normal
-                      case for a SIGNED template: when the excess makes
-                      g(k) negative at small scales the integrand changes
-                      sign and continuing it is meaningless.
+        "unfittable"  the integrand changes sign over the top decade, so
+                      no power law describes it. This is the normal case
+                      for a SIGNED template.
 
     In the last two cases the tail is zero and the caller must say which
-    of the two happened, because they call for different things: more
-    resolution in the first, a split template in the second.
+    happened, because they call for different things: more resolution in
+    one, a split template in the other.
     """
     m = k >= k[-1] / 10.0 ** ndec
-    if int(m.sum()) < 3 or (P3D[m] <= 0).any():
+    if int(m.sum()) < 3:
+        return 0.0, np.nan, "unfittable"
+    scale = float(np.max(np.abs(P3D))) or 1.0
+    if np.all(np.abs(P3D[m]) < 1e-12 * scale):
+        return 0.0, np.nan, "zero"
+    if (P3D[m] <= 0).any():
         return 0.0, np.nan, "unfittable"
     s = float(np.polyfit(np.log(k[m]), np.log(P3D[m]), 1)[0])
     if s >= -2.0:
@@ -358,34 +388,53 @@ def main():
 
     # --- the fit-free bound -----------------------------------------------
     R1 = B["ratio"]
+    sR = B["err_ratio"] if "err_ratio" in B else np.full(R1.size, np.nan)
     lo, hi, inside = bounds_check(k3, ratio_gas, k1_mpc, R1)
     say("FIT-FREE BOUND.  P1D is a positive-kernel integral of P3D, so the")
     say("P1D ratio is a weighted average of the 3D ratio above that k and")
     say("must lie between its extremes there. If the flux were suppressed")
     say("by the same fraction as the gas, every row below would be INSIDE.")
-    say(f"{'k [s/km]':>10s} {'k [1/Mpc]':>10s} {'r_1D':>8s} "
-        f"{'min r_3D':>9s} {'max r_3D':>9s} {'verdict':>9s}")
+    say("A violation only counts if it is larger than the error on r_1D,")
+    say("so the distance outside the band is reported in sigma.")
+    say(f"{'k [s/km]':>10s} {'k [1/Mpc]':>10s} {'r_1D':>8s} {'err':>7s} "
+        f"{'min r_3D':>9s} {'max r_3D':>9s} {'n_sigma':>8s} {'verdict':>9s}")
+    nsig = np.zeros(R1.size)
     n_out = 0
     for jj in np.flatnonzero(fm):
         if np.isnan(lo[jj]):
-            v = "no 3D"
-        elif inside[jj]:
-            v = "inside"
+            v, ns = "no 3D", np.nan
         else:
-            v = "OUTSIDE"
-            n_out += 1
+            d = max(lo[jj] - R1[jj], R1[jj] - hi[jj], 0.0)
+            ns = d / sR[jj] if sR[jj] > 0 else np.nan
+            nsig[jj] = 0.0 if np.isnan(ns) else ns
+            v = "inside" if d <= 0 else "OUTSIDE"
+            if d > 0:
+                n_out += 1
         say(f"{kb[jj]:10.5f} {k1_mpc[jj]:10.4f} {R1[jj]:8.4f} "
-            f"{lo[jj]:9.4f} {hi[jj]:9.4f} {v:>9s}")
-    if n_out:
-        say(f"  -> {n_out} bins fall OUTSIDE. With no fitting and no free "
-            f"parameter, the flux power is NOT suppressed by the same "
-            f"fraction as the gas power.")
-        say("     That is what a fitted amplitude away from 1 says, "
-            "arrived at without a fit.")
-    else:
-        say("  -> every bin is inside the bound. The data are consistent "
-            "with flux and gas changing by the same fraction, and any "
+            f"{sR[jj]:7.4f} {lo[jj]:9.4f} {hi[jj]:9.4f} {ns:8.2f} "
+            f"{v:>9s}")
+    worst = float(np.nanmax(nsig[fm])) if fm.any() else 0.0
+    if n_out == 0:
+        say("  -> every testable bin is inside. The data are consistent "
+            "with flux and gas changing by the same fraction; any fitted "
             "amplitude away from 1 is doing something else.")
+    elif worst < 3.0:
+        say(f"  -> {n_out} bin(s) outside, worst at {worst:.1f} sigma. "
+            f"SUGGESTIVE, NOT PROOF. Below 3 sigma this is a hint that "
+            f"flux and gas respond differently, not a demonstration.")
+        say("     The fitted amplitude is the stronger statement here, "
+            "because it uses every bin at once.")
+    else:
+        say(f"  -> {n_out} bin(s) outside, worst at {worst:.1f} sigma. "
+            f"With no fitting and no free parameter, flux power is NOT "
+            f"suppressed by the same fraction as gas power.")
+    if np.isnan(lo[np.flatnonzero(fm)[0]]):
+        j0 = np.flatnonzero(fm)[0]
+        say(f"     NOTE: the lowest P1D bin (k = {k1_mpc[j0]:.4f} Mpc^-1) "
+            f"carries the deepest deficit and CANNOT be tested, "
+            f"because the 3D band starts at {k3[0]:.4f} Mpc^-1.")
+        say("     A 3D measurement reaching lower k would make this test "
+            "far sharper; that is a box-size question, not an analysis one.")
     say()
 
     # --- P1D -> P3D --------------------------------------------------------
@@ -398,10 +447,23 @@ def main():
         say(f"  {int(bad.sum())} bins have slope >= 0, so P3D would be "
             f"negative there. They are at k = "
             + ", ".join(f"{v:.4f}" for v in k1_mpc[bad]) + " Mpc^-1.")
-        say("    A negative P3D inside the integral is a corruption, not a "
-            "small error, so those bins are clamped to zero and counted "
-            "here. If there are more than one or two, raise --spline-s.")
-        P3D = np.where(bad, 0.0, P3D)
+        good = np.flatnonzero(~bad)
+        if good.size:
+            # A negative P3D inside the integral is a corruption, not a
+            # small error. Zeroing the bin is also wrong when the bin is an
+            # endpoint carrying real signal, which is where a spline
+            # overshoots. Borrowing the nearest fitted slope keeps the
+            # magnitude sane and is stated rather than hidden.
+            for j in np.flatnonzero(bad):
+                jn = good[np.argmin(np.abs(good - j))]
+                P3D[j] = -(2.0 * np.pi / k1_mpc[j] ** 2) * Pa[j] * slope[jn]
+            say(f"    Those bins take the log-slope of their nearest "
+                f"well-behaved neighbour instead. This is a patch on an "
+                f"endpoint overshoot, not a measurement; if more than one "
+                f"or two bins need it, raise --spline-s.")
+        else:
+            raise SystemExit("every bin has a non-negative slope; the "
+                             "spline is not usable, raise --spline-s")
     t_ref, s_ref, st_ref = powerlaw_tail(k1_mpc, P3D)
     if args.no_extrapolate:
         t_ref = 0.0
@@ -424,9 +486,13 @@ def main():
             if st == "divergent":
                 say(f"  {name}: tail slope {sl:.3f} >= -2, the integral "
                     f"does not converge. Truncated; treat as a bound.")
+            elif st == "zero":
+                say(f"  {name}: the weight is zero over the top decade, so "
+                    f"the tail is exactly zero. Nothing is being dropped.")
             elif st == "unfittable":
-                say(f"  {name}: the integrand is not positive over the top "
-                    f"decade, so no power-law tail exists. Truncated.")
+                say(f"  {name}: the integrand changes sign over the top "
+                    f"decade, so no power-law tail exists. Truncated; the "
+                    f"missing piece is bounded by the excess template.")
             t = 0.0
         else:
             say(f"  {name}: tail continued, slope {sl:.3f}, "
@@ -455,61 +521,125 @@ def main():
     y = dP[fm]
 
     def fit(X, name, pnames):
-        cv = np.linalg.inv(X.T @ Cinv @ X)
+        """
+        Generalised least squares, guarded against a singular design.
+
+        The split template turned out to be very nearly degenerate: the
+        excess piece is almost constant across the fit window, so it and
+        the free constant span nearly the same direction.  `inv` on that
+        normal matrix returns negative variances and NaN errors, and the
+        chi^2 it produces is meaningless.  `pinv` plus a reported
+        condition number makes the degeneracy visible instead of letting
+        it through as numbers.
+        """
+        N = X.T @ Cinv @ X
+        cond = float(np.linalg.cond(N))
+        cv = np.linalg.pinv(N, rcond=1e-12)
         bt = cv @ (X.T @ Cinv @ y)
         r = y - X @ bt
         c2 = float(r @ Cinv @ r)
         dof = nf - X.shape[1]
         say(name)
-        for nm, v, e in zip(pnames, bt, np.sqrt(np.diag(cv))):
-            say(f"    {nm:<8s} = {v:12.5e} +- {e:.3e}")
-        say(f"    chi2/dof = {c2:.2f} / {dof} = {c2/dof:.3f}")
+        var = np.diag(cv)
+        for nm, v, e in zip(pnames, bt, var):
+            err = np.sqrt(e) if e > 0 else np.nan
+            say(f"    {nm:<8s} = {v:12.5e} +- {err:.3e}")
+        say(f"    chi2/dof = {c2:.2f} / {dof} = {c2/dof:.3f}"
+            f"    cond(N) = {cond:.2e}")
+        if cond > 1e8 or (var <= 0).any():
+            say("    WARNING: the design is degenerate at this precision. "
+                "The parameters are not separately determined and the "
+                "chi2 is not reliable. Read the next model instead.")
         say()
-        return bt, cv, c2, r, dof
+        return bt, cv, c2, r, dof, cond
 
     X2 = np.column_stack([-Pa[fm], np.ones(nf)])
     X3 = np.column_stack([drain[fm], np.ones(nf)])
     X4 = np.column_stack([t_sup[fm], t_exc[fm], np.ones(nf)])
+    X5 = np.column_stack([t_sup[fm], t_exc[fm]])
 
-    b2, c2v, chi2, r2, d2 = fit(
+    b2, c2v, chi2, r2, d2, q2 = fit(
         X2, "M2  DP1D = -f P1D_ref + c            (constant fraction)",
         ["f", "c"])
-    b3, c3v, chi3, r3, d3 = fit(
+    b3, c3v, chi3, r3, d3, q3 = fit(
         X3, "M3  DP1D = alpha T[g] + c            (one combined template)",
         ["alpha", "c"])
-    b4, c4v, chi4, r4, d4 = fit(
-        X4, "M4  DP1D = a_sup T[g+] + a_exc T[g-] + c   (SPLIT template)",
+    b4, c4v, chi4, r4, d4, q4 = fit(
+        X4, "M4  DP1D = a_sup T[g+] + a_exc T[g-] + c   (split + constant)",
         ["a_sup", "a_exc", "c"])
+    b5, c5v, chi5, r5, d5, q5 = fit(
+        X5, "M5  DP1D = a_sup T[g+] + a_exc T[g-]       (split, NO constant)",
+        ["a_sup", "a_exc"])
+
+    # M3's model space is a strict subspace of M4's, because
+    # T[g] = T[g+] + T[g-] exactly. chi2 therefore CANNOT rise from M3 to
+    # M4. If it does, the fit is numerically broken, not physically
+    # interesting, and saying so is the whole point of checking.
+    say("nesting check: span{T[g], 1} is contained in "
+        "span{T[g+], T[g-], 1},")
+    say("so chi2(M4) <= chi2(M3) must hold as algebra.")
+    if chi4 > chi3 + 1e-6:
+        say(f"  VIOLATED: chi2(M4) = {chi4:.2f} > chi2(M3) = {chi3:.2f}. "
+            f"The M4 fit is numerically broken; ignore its numbers and "
+            f"use M5, which drops the redundant constant.")
+    else:
+        say(f"  holds: chi2(M4) = {chi4:.2f} <= chi2(M3) = {chi3:.2f}")
+    say()
 
     say(f"M2 -> M3: delta chi2 = {chi2-chi3:8.2f} at equal parameters")
     say(f"M3 -> M4: delta chi2 = {chi3-chi4:8.2f} for 1 extra parameter")
+    say(f"M3 -> M5: delta chi2 = {chi3-chi5:8.2f} at equal parameters")
     say()
-    csig = abs(b4[2]) / np.sqrt(c4v[2, 2])
-    say(f"M4's constant is {csig:.1f} sigma from zero.")
-    if csig < 2:
-        say("  -> consistent with zero. The two MEASURED 3D components "
-            "account for the whole P1D difference; nothing else is needed.")
-    else:
-        say("  -> not zero. Something in DP1D is not carried by the 3D gas "
-            "power difference, and its size is that constant.")
-    say()
-    say(f"a_sup = {b4[0]:.4f} +- {np.sqrt(c4v[0,0]):.4f}   "
+    # Which split fit is usable is a property of the design, not a
+    # preference: pick the conditioned one and say which was picked.
+    ok4 = q4 < 1e8 and (np.diag(c4v) > 0).all() and chi4 <= chi3 + 1e-6
+    bs, cs, chis, ds, rs, tag = ((b4, c4v, chi4, d4, r4, "M4")
+                                 if ok4 else
+                                 (b5, c5v, chi5, d5, r5, "M5"))
+    Xs = X4 if ok4 else X5
+    say(f"split-template result taken from {tag} "
+        f"({'well conditioned' if ok4 else 'M4 was degenerate'})")
+    say(f"  a_sup = {bs[0]:.4f} +- {np.sqrt(max(cs[0,0],0)):.4f}   "
         f"(flux response to the large-scale gas deficit)")
-    say(f"a_exc = {b4[1]:.4f} +- {np.sqrt(c4v[1,1]):.4f}   "
+    say(f"  a_exc = {bs[1]:.4f} +- {np.sqrt(max(cs[1,1],0)):.4f}   "
         f"(flux response to the small-scale gas excess)")
     say("  These are separately meaningful only because the template was "
         "split: with one template the two responses are forced equal and "
         "the single amplitude absorbs both.")
     say()
 
+    if ok4:
+        csig = abs(bs[2]) / np.sqrt(cs[2, 2])
+        say(f"M4's constant is {csig:.1f} sigma from zero.")
+        if csig < 2:
+            say("  -> consistent with zero. The two MEASURED 3D components "
+                "account for the whole P1D difference; nothing else is "
+                "needed.")
+        else:
+            say("  -> not zero. Something in DP1D is not carried by the 3D "
+                "gas power difference, and its size is that constant.")
+    else:
+        say("The 'is a constant needed' question is answered instead by "
+            "M5 against M3, since M5 has no constant at all:")
+        say(f"  chi2(M5) = {chi5:.2f} / {d5}   vs   "
+            f"chi2(M3) = {chi3:.2f} / {d3}")
+        if chi5 <= chi3 + 4:
+            say("  -> dropping the constant costs nothing. The two measured "
+                "3D components account for the P1D difference on their "
+                "own, with no free additive term.")
+        else:
+            say("  -> dropping the constant hurts. Something in DP1D is not "
+                "carried by the 3D gas power difference.")
+    say()
+
     say(f"{'k [s/km]':>10s} {'DP1D':>12s} {'err':>10s} {'M2':>12s} "
-        f"{'M3':>12s} {'M4':>12s} {'(d-M4)/e':>9s}")
+        f"{'M3':>12s} {tag:>12s} {'(d-' + tag + ')/e':>10s}")
     for jx, jj in enumerate(np.flatnonzero(fm)):
         say(f"{kb[jj]:10.5f} {dP[jj]:12.5e} {sd[jj]:10.3e} "
-            f"{(X2@b2)[jx]:12.5e} {(X3@b3)[jx]:12.5e} {(X4@b4)[jx]:12.5e} "
-            f"{r4[jx]/sd[jj]:9.2f}")
+            f"{(X2@b2)[jx]:12.5e} {(X3@b3)[jx]:12.5e} {(Xs@bs)[jx]:12.5e} "
+            f"{rs[jx]/sd[jj]:10.2f}")
     say()
-    for nm, r in (("M2", r2), ("M3", r3), ("M4", r4)):
+    for nm, r in (("M2", r2), ("M3", r3), (tag, rs)):
         say(f"residual signs {nm}: "
             + "".join("+" if v > 0 else "-" for v in r))
     say("  a run of like signs means a missing shape, not scatter, whatever")
@@ -533,11 +663,11 @@ def main():
                 label=rf"M2 const $f$, $\chi^2/\nu$={chi2/d2:.2f}")
         ax.plot(kk, X3 @ b3, color="#ff7f0e", lw=1.5,
                 label=rf"M3 combined, $\chi^2/\nu$={chi3/d3:.2f}")
-        ax.plot(kk, X4 @ b4, color="#2ca02c", lw=2.2,
-                label=rf"M4 split, $\chi^2/\nu$={chi4/d4:.2f}")
+        ax.plot(kk, Xs @ bs, color="#2ca02c", lw=2.2,
+                label=rf"{tag} split, $\chi^2/\nu$={chis/ds:.2f}")
         ax.set(xscale="log", ylabel=r"$\Delta P_{\rm 1D}$ [km s$^{-1}$]",
-               title=(rf"$z={z:.1f}$,  $a_{{\rm sup}}={b4[0]:.2f}$,  "
-                      rf"$a_{{\rm exc}}={b4[1]:.2f}$"))
+               title=(rf"$z={z:.1f}$,  $a_{{\rm sup}}={bs[0]:.2f}$,  "
+                      rf"$a_{{\rm exc}}={bs[1]:.2f}$"))
         ax.legend(frameon=False, fontsize=8)
         ax.grid(alpha=0.2, which="both")
 
@@ -560,13 +690,19 @@ def main():
         bx.grid(alpha=0.2, which="both")
 
         if args.diagnose:
+            # The round trip plotted as P1D against P1D over eight decades
+            # of log axis looks perfect no matter what, because the whole
+            # result lives at the percent level and a log axis that wide
+            # cannot show a percent. The ratio on a linear axis can.
             cx = axes[2]
-            cx.plot(k1_mpc, Pa, "o", ms=3, color="#1f77b4", label="P1D data")
-            cx.plot(k1_mpc, round_trip, "-", color="#ff7f0e",
-                    label="P1D from the P3D round trip")
-            cx.set(xscale="log", yscale="log", xlabel=r"$k$ [Mpc$^{-1}$]",
-                   ylabel=r"$P_{\rm 1D}$")
-            cx.legend(frameon=False, fontsize=8)
+            cx.axhline(1.0, color="k", lw=1, ls="--")
+            cx.axhspan(0.95, 1.05, color="0.6", alpha=0.15, lw=0)
+            cx.plot(k1_mpc, round_trip / np.maximum(Pa, 1e-300), "o-",
+                    ms=4, lw=1.4, color="#ff7f0e")
+            cx.set(xscale="log", xlabel=r"$k$ [Mpc$^{-1}$]",
+                   ylabel="round trip / data",
+                   title="closure of the P1D -> P3D -> P1D inversion "
+                         "(shaded: $\\pm5\\%$)")
             cx.grid(alpha=0.2, which="both")
 
         fig.tight_layout()
