@@ -72,6 +72,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import glob
 import os
 
 H = 0.681
@@ -131,13 +132,36 @@ def softening(box_hmpc, gas_side):
 
 
 def ic_path(leg, model):
+    """
+    (path, how) for this leg's initial conditions.
+
+    The filename encodes monofonIC's GridRes, NOT the gas particle count.
+    `masked` with ParticleMaskType 2 puts gas on (GridRes/2)^3, so
+    IC_N1024B080 holds 512^3 gas particles. Both facts are true and an
+    earlier version of this function conflated them, encoding the particle
+    count and then looking for files that do not exist.
+
+    If the constructed name is absent but exactly one IC for this model
+    sits in the directory, that file is used and the substitution is
+    reported. A rename upstream should not silently produce ten parameter
+    files pointing at nothing.
+    """
     tag = MODELS[model]
-    side = LEGS[leg]["grid"] // 2          # masked type 2 halves each dimension
-    box = int(LEGS[leg]["box"])
-    return f"{IC_ROOT}/{model}/{leg}/IC_N{side:04d}B{box:03d}_200_{tag}.hdf5"
+    d = f"{IC_ROOT}/{model}/{leg}"
+    name = (f"IC_N{LEGS[leg]['grid']:04d}"
+            f"B{int(LEGS[leg]['box']):03d}_200_{tag}.hdf5")
+    path = os.path.join(d, name)
+    if os.path.exists(path):
+        return path, "ok"
+    hits = sorted(glob.glob(os.path.join(d, f"IC_*_{tag}.hdf5")))
+    if len(hits) == 1:
+        return hits[0], "glob"
+    if len(hits) > 1:
+        return path, f"AMBIGUOUS ({len(hits)} candidates)"
+    return path, "MISSING"
 
 
-def yml(leg, model, zreion, overdens, name):
+def yml(leg, model, zreion, overdens, name, ic):
     L = LEGS[leg]
     soft, soft_max, _ = softening(L["box"], L["gas"])
     mesh = L["gas"]
@@ -209,7 +233,7 @@ Scheduler:
   cell_split_size:       200
 
 InitialConditions:
-  file_name: {ic_path(leg, model)}
+  file_name: {ic}
   periodic:   1
   cleanup_h_factors: 0
   cleanup_velocity_factors: 0
@@ -339,24 +363,23 @@ def main():
     print()
 
     missing, written, skipped = [], [], []
-    print(f"{'run':<22s} {'leg':>3s} {'z_reion':>8s} {'Delta':>6s} "
-          f"{'nodes':>5s}  IC")
+    print(f"{'run':<26s} {'leg':>3s} {'z_reion':>8s} {'Delta':>6s} "
+          f"{'nodes':>5s}  {'IC':<8s} file")
     for leg, model, zre, od, sub in RUNS:
         tag = MODELS[model]
         name = f"{tag}-{int(LEGS[leg]['box'])}-lyman-{leg}-z{zre}-d{od}"
         workdir = os.path.join(args.root, sub)
-        ic = ic_path(leg, model)
-        ok = os.path.exists(ic)
-        if not ok:
-            missing.append(ic)
-        print(f"{name:<22s} {leg:>3s} {zre:>8} {od:>6} "
-              f"{LEGS[leg]['nodes']:>5d}  {'ok' if ok else 'MISSING'}")
+        ic, how = ic_path(leg, model)
+        if how not in ("ok", "glob"):
+            missing.append(f"{ic}   [{how}]")
+        print(f"{name:<26s} {leg:>3s} {zre:>8} {od:>6} "
+              f"{LEGS[leg]['nodes']:>5d}  {how:<8s} {os.path.basename(ic)}")
 
         if args.check:
             continue
         os.makedirs(workdir, exist_ok=True)
         ymlname = f"{tag}-{leg}.yml"
-        for fname, body in ((ymlname, yml(leg, model, zre, od, name)),
+        for fname, body in ((ymlname, yml(leg, model, zre, od, name, ic)),
                             ("run.sh", runsh(leg, model, name, workdir,
                                              ymlname))):
             path = os.path.join(workdir, fname)
@@ -371,7 +394,7 @@ def main():
 
     print()
     if missing:
-        print(f"{len(missing)} initial condition file(s) not found:")
+        print(f"{len(missing)} initial condition file(s) unusable:")
         for m in sorted(set(missing)):
             print("  ", m)
         print("   generate them before submitting; the parameter files point "
