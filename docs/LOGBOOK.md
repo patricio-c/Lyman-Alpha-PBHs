@@ -8,8 +8,9 @@ test was run is often more useful later than its result, and an error that was
 found once will be found again by whoever does not know it was already made.
 
 Its companion is [`NARRATIVE.md`](NARRATIVE.md), which is **always rewritten**
-to reflect current understanding. If you catch yourself wanting to edit an old
-entry here, the edit belongs in the narrative instead.
+to reflect current understanding, and which carries the list of what is still
+open. If you catch yourself wanting to edit an old entry here, the edit
+belongs in the narrative instead.
 
 One entry per real step. Keep entries short and link to the detail: the stage
 that did the work, the RESULTS document, the figure. Every stage log now
@@ -206,22 +207,52 @@ Each leg is **one change** from the current setup: (c) is monofonIC grid
 1024. Both give 8× the particle mass, which is what mass-matches them and makes
 the splicing correction valid.
 
----
+## 2026-09-11 — the suite generated, and four errors caught on the way
 
-## What is open
+The ten parameter files and run scripts now come from
+[`tools/make_lowres_suite.py`](../tools/make_lowres_suite.py) rather than from
+copying one file ten times. All ten initial conditions resolve; the suite is
+ready to submit.
 
-- **The decisive test:** does the drain amplitude move between legs (b) and
-  (c)? Same box, same phases, only the mass resolution differs. Stable means
-  the low-k deficit is a prediction; moving means it is an upper bound on what
-  a model with feedback would do.
-- **Only one redshift.** The entire method is about redshift evolution and
-  there is one point. The z = 5 → 2 output list exists to fix this.
-- **`b(k,z)` has never been computed.** It needs `A_P` and `A_b` from the
-  initial conditions, which are calculable rather than fitted.
-- **No DESI data has been touched.** The common `(k1, k2)` intersection needs
-  to be enforced globally before any integrated observable is quoted.
-- **The 3.5× ratio in converted mass** between FCT and CDM is a testable
-  prediction against the observed stellar mass density, once normalised so
-  that CDM matches observations. The absolute QLA numbers cannot be used: both
-  models overproduce by more than an order of magnitude, which is what tells
-  you QLA is a gas-removal prescription and not star formation.
+The generator exists because the first parameter file, written by hand, had
+four errors in it:
+
+1. **The gravitational softening was copied unchanged from the production
+   run.** This is the one that mattered. Softening must scale with the mean
+   interparticle separation, and both new legs sit at exactly 2× the
+   production spacing, so 0.0018 → 0.0036 and 0.0007 → 0.0014. Leaving it
+   would have put a *force*-resolution change inside a run whose entire
+   purpose is to isolate a *mass*-resolution change, and the two could not
+   then have been separated. The generator derives it from box and grid
+   rather than tabulating it.
+2. An initial-conditions filename that does not exist.
+3. `low-resolution` where the directory is `low_resolution` — one hyphen,
+   and the run dies at startup.
+4. A power-spectrum grid finer than the particle sampling supports, which is
+   how the Fourier-cube corner modes got into the stage 11 analysis the first
+   time.
+
+**A bug inherited from the production `run.sh`:** `RESTART_FLAG` is computed
+and then never used, because the `mpiexec` line carries a hardcoded `-r`.
+Every run therefore started in restart mode, including the first one from
+initial conditions. The generated scripts use the flag.
+
+**And a bug of mine in the generator's first version.** It built the IC
+filename from the gas particle count, when the filename encodes monofonIC's
+`GridRes`: `masked` with `ParticleMaskType 2` puts gas on (GridRes/2)³, so
+`IC_N1024B080` holds 512³ gas particles. Both facts are true and I conflated
+them, so all ten runs reported `MISSING` against files that exist. Fixed, with
+a glob fallback that *reports* the substitution rather than applying it
+quietly, since a rename upstream should not silently produce ten parameter
+files pointing at nothing.
+
+**Three questions closed**, all of the kind that cannot be detected after the
+fact: `zstart = 200` is correct and the z = 198 that stage 09 reads is the
+first snapshot rather than the initial conditions; the FCT transfer function
+was generated with the same convention as the production run; and all four
+sets of initial conditions exist.
+
+**Housekeeping:** the trailing "What is open" section was removed from this
+file. It was a maintained status list living inside an append-only document,
+which contradicted the file's own rule, and `NARRATIVE.md` already carries the
+equivalent. One list instead of two stops them drifting. No entry was edited.
