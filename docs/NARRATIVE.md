@@ -4,7 +4,7 @@
 no history — for that, and for the things that turned out to be wrong, see
 [`LOGBOOK.md`](LOGBOOK.md), which is append-only.
 
-Last rewritten: 2026-09-11.
+Last rewritten: 2026-09-16.
 
 ---
 
@@ -83,7 +83,13 @@ runs; stage 11 propagates the measured difference through
 P1D(k) = (1/2π) ∫_k^∞ k' P3D(k') dk'
 ```
 
-and compares it to the flux difference. Replacing an assumed constant
+and compares it to the flux difference. The extractor that produces those
+flux spectra has since been checked against an independent code: SpecWizard,
+run by Maria Marinichenko on the same sightlines, agrees with it to 3.5% pixel
+by pixel with a median bias of −0.5%, in the diffuse gas the forest measures.
+That check is at z = 5, where 97% of pixels are saturated and say nothing; it
+certifies the diffuse regime and not the dense one.
+Replacing an assumed constant
 suppression with the measured shape improves the fit by **Δχ² = 63.7 at equal
 parameter count** — a measurement substituted for an assumption, with no new
 freedom — taking χ²/dof from 11.5 to 2.42.
@@ -144,7 +150,7 @@ something to claim.
 
 ## What is still open
 
-Ordered by what blocks what. None of the last four depends on the outcome
+Ordered by what blocks what. None of the last five depends on the outcome
 above, so they can proceed in parallel with the suite.
 
 1. **The drain amplitude between legs (b) and (c)** — the deciding test, one
@@ -166,6 +172,17 @@ above, so they can proceed in parallel with the suite.
    re-run with the line-of-sight output fixed. Every P1D number here comes from
    regenerated rays, and that substitution has not yet been checked against the
    thing it replaced.
+7. **The sampling-noise floor of the extractor**, which is new and which
+   threatens the small-scale half of the result rather than the large-scale
+   half. FCT sightlines carry 3451 gas particles at the median against 5887 in
+   CDM — 41% fewer tracers, because 49.8% of the baryons were converted. A
+   sparser SPH density is a noisier one, and that noise is white: it cannot
+   reach the scales where the deficit lives, and it does inflate the small
+   scales where the excess lives. Whether the excess at k = 27 Mpc⁻¹ survives
+   at matched sampling has not been measured. The test is cheap: delete 41.4%
+   of the gas particles from the CDM sightlines, multiply the survivors' masses
+   by 1/(1−f) so the mean density and the mean flux do not move, and
+   re-extract. What comes out is the noise floor at FCT's sampling.
 
 ## Why the evolution is the point
 
