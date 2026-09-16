@@ -1,9 +1,11 @@
 __pycache__/
 *.pyc
+.ipynb_checkpoints/
 figures/*.png
 figures/*.pdf
 cache/*.npz
-data/*.hdf5
+*.hdf5
+*.npz
 *.err
 *.out
 paper/*.aux
