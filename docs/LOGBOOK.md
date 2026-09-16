@@ -256,3 +256,172 @@ sets of initial conditions exist.
 file. It was a maintained status list living inside an append-only document,
 which contradicted the file's own rule, and `NARRATIVE.md` already carries the
 equivalent. One list instead of two stops them drifting. No entry was edited.
+
+## 2026-09-16 — V2 against SpecWizard, and the meeting
+
+### The extractor has an external number for the first time
+
+`legacy/swift_extract.py` had never been compared to another code. It now has
+been. Maria Marinichenko ran SpecWizard on `data/los_murgia_cdm_z5_20.hdf5` —
+the 20 sightlines cut from `murgia/cdm/los_0003.hdf5` at z = 5 — and returned
+tau. Our answer was already on disk in `cache/cache_murgia_cdm_z5_first100.npz`,
+so the comparison needed no new extraction: her 20 line names are a subset of
+those 100 and match exactly.
+
+**Matched on tau_eff, the two codes agree to 3.5% pixel by pixel, with a
+median bias of −0.5%**, over the 1087 pixels with tau < 1 in both.
+
+That is the check `HANDOFF` has carried as pending since the beginning, and it
+is a much harder test than any internal ablation.
+
+### Why she returned 2042 pixels and not the 2048 that were asked for
+
+Her v_box is 2730.681 km/s against our 2738.925. The cause is H(z):
+SpecWizard recomputes it from Omega_m and Omega_Lambda alone and gets
+554.9290 km/s/Mpc, while SWIFT's own `Cosmology/H [internal units]` in the
+file header is **556.6044**, because it includes Omega_r and the massive
+neutrinos. The gap is **0.3019%**, and 2730.681 / 1.337366 = 2041.84, which is
+her 2042 exactly.
+
+A 0.3% stretch of the whole k axis is small against a 19% effect and is not
+small against the 0.76% error on `f`. The fix on her side is to read H from
+the header. The fix on ours is that it is not needed: resampling her tau onto
+our grid in **fraction of box** rather than in km/s cancels the stretch
+exactly, leaving only 0.3% of the peculiar velocity, about 0.15 km/s or a
+tenth of a pixel. The comparison above was done that way.
+
+### The UVB difference behaves as a constant, and z = 5 cannot say more
+
+Her tau_eff is 2.4459 against our 2.8877 (Gamma_HI = 4.30e-13 from
+TREECOOL_HM12_G+Q). The factor that equates them is **A = 1.33507**, so if the
+only difference were the ultraviolet background her table would imply
+Gamma_HI = 5.74e-13 at z = 5. That number is the one to check against what the
+Ploeckinger table actually gives.
+
+Note that A = 1.335 while the raw tau_eff ratio is only 1.181. Saturation
+decouples the two: at z = 5 the optical depth can be wrong by a third and
+tau_eff moves by a fifth. **Matching tau_eff at z = 5 is a weak constraint**,
+which is the opposite of what was assumed when this comparison was designed.
+
+An attempt to test whether the residual carries a density dependence — which
+is what would show self-shielding, dust or cosmic rays in her table acting as
+something other than a rescaling — returned a slope of +0.0101 in
+d ln(hers/ours) / d ln(tau). **That is not a null result, it is an
+uninformative one.** The minimum tau anywhere in the file is 0.402: at z = 5
+even the voids absorb. After cutting on tau < 1 in both fields the sample spans
+tau from 0.65 to 0.98, a factor 1.5, and the first six bins trend upward while
+the last two reverse. There is no lever arm. Worse, self-shielding acts at
+Delta above ~100, which is tau far above 1, entirely inside the saturated
+region the cut removes by construction. At z = 5 that question is inaccessible
+in principle rather than for lack of statistics.
+
+Three symptoms of one disease, all of which disappear at z = 3, where
+tau_eff = 0.42 and tau spans orders of magnitude:
+
+1. A moves 33.6% for 18% in tau_eff.
+2. Only 2.65% of pixels are usable.
+3. Those pixels cover a factor 1.5 in tau.
+
+**What is established:** in the diffuse gas the forest actually measures at
+z = 5, the two codes agree at 3.5% and the ultraviolet background difference is
+a constant. What is not established is anything about the dense regime, and
+z = 5 cannot establish it.
+
+### A stale instruction, found while doing this
+
+`HANDOFF` section 6 says to tell Maria the file is truncated when handing it
+over. It is not. V1 (job 1524260) reproduced the murgia sightlines particle for
+particle against regeneration from the full snapshot, and the ray positions in
+the handed-over file cover 95.2% and 96.6% of the box in x and y with the
+projection axis spanning all 29.521 Mpc. The `range_when_shooting_down = [0, 40]`
+bug belongs to the 58.7372 Mpc box; in a 29.52 Mpc box that range clips
+nothing. Her tau are physical, not merely comparable.
+
+### The census reproduced itself from a different direction
+
+`legacy/relosz.py --uniform 200 --seed 12345` was run on both 40 Mpc/h runs at
+z = 3 to produce sightline files for the next round with Maria. Note that
+`--uniform N` is rays **per axis** over three axes, so this is 600 rays, not
+200 — the same convention as the `--uniform 512` that gives the production
+1536.
+
+The particle counts it printed are the conversion census, arrived at by walking
+snapshots rather than by histogramming: 115318346 gas particles in CDM and
+67341600 in FCT, against 512³ = 134217728 initially. That is **14.08%** and
+**49.83%** converted, matching stage 06 to the decimal by an independent route.
+
+### A risk to the small-scale half of the result
+
+Particles per sightline: CDM median 5887, FCT median **3451**. FCT has 41%
+fewer tracers per ray.
+
+`HANDOFF` pending 1 already identified sparse SPH sampling as the leading
+suspect for the residual at high k in the murgia comparison, where
+`wsum_raw_med` fell from 0.924 to 0.771 and the conversion gap was 8.4 points.
+Here the conversion gap is 35.7 points and the tracer gap is 41%.
+
+Fewer tracers means a noisier SPH density, which is white noise added to the
+field. White noise cannot touch low k, so **the large-scale deficit is not at
+risk**. It does inflate high k, which is exactly where the other half of the
+result lives — the gas ratio of 1.59 at k = 27 Mpc⁻¹ that has been read as
+primordial excess.
+
+This is not a claim that the excess is noise. It is a statement that it has not
+been measured and that measuring it is cheap: the compensated-deletion test
+already designed in `HANDOFF` pending 1, applied to this pair with
+**f = 0.414** rather than the 0.084 written there for murgia. Delete that
+fraction of gas particles from the CDM sightlines, multiply the surviving
+masses by 1/(1−f) so the mean density and tau_eff do not move, and re-extract.
+What comes out is the noise floor of the estimator at FCT's sampling.
+
+### The meeting
+
+Two objections were raised, and the tests already in this repository answer
+both.
+
+**"If the model converts 50% of the gas, that becomes stars, and the halo mass
+function rules it out."** The argument does not separate the models, because it
+applies to CDM with the same force: QLA-CDM converts 14.08% of the baryons
+against an observed stellar mass density corresponding to a few per cent, so it
+overshoots by more than the scatter as well. Reading QLA particles as stars
+would invalidate the CDM Lyman-alpha literature that calibrated the
+prescription. What survives is the ratio, 3.5×, which needs normalising so that
+CDM matches observations before it constrains anything.
+
+Colazo et al. (2025), A&A 702, A20, measures the halo and subhalo mass
+functions for this family of models directly: the enhancement reaches a factor
+of six at 10⁸–10⁹ M_sun and the high-mass end agrees with CDM and with observed
+group and cluster abundances. The excess sits where there are no luminous
+tracers. A follow-up paper, in preparation, performs the abundance-matching
+step the objection proposes and finds that satellite stellar mass functions are
+weak discriminants, because the galaxy–halo mapping reabsorbs the change in
+counts; internal structure discriminates better than abundance does.
+
+Both of those are dark-matter-only, 35 Mpc/h, at z = 0.5, with a different
+blue index and PBH mass from the runs here. Same family, not the same model.
+The honest statement is that the proposed test does not rule the model out, not
+that it has already been run on these runs.
+
+**"Compare against the gas spectrum and you will find the same deficit, so it
+is ruled out."** The first half is this repository's 2026-09-10 result: the
+deficit in P1D **is** the gas deficit, measured and propagated, Delta chi² =
+63.7 at equal parameter count. The second half does not follow, because a
+deficit in gas is only a prediction of the model if the model produces it. The
+matter ratio at the same scale is 1.0002 while the gas ratio is 0.806, so what
+differs is which particles the threshold removed, not how structure grew. And
+the gas ratio is not a deficit at all: it changes sign near k ≈ 2.7 Mpc⁻¹ and
+reaches 1.59 at k = 27. A physical suppression is monotonic; removing the
+densest peaks is not.
+
+What would settle it against us is the deficit surviving at threshold 3000 and
+at one eighth the mass resolution. That is the suite, still unsubmitted.
+
+### Note on this file's companion
+
+`HANDOFF` section 0 is dated 2026-09-04 and predates stages 09, 10 and 11, the
+run suite, and the error bars. Its pending 4 says nothing below k = 0.007 s/km
+is quotable until the jackknife runs; it ran, and the result is in the
+2026-09-08 and 2026-09-10 entries above. Its pending 6 (V2) and its pending 1
+(the sampling-noise floor, with the wrong f) are likewise overtaken by this
+entry. A pointer belongs at the top of that section; the section itself is not
+rewritten.
