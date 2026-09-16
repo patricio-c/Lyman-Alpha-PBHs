@@ -559,3 +559,74 @@ the gas; and for FCT to be consistent with the observed baryon budget at
 z = 3 a model with a return channel would have to put back roughly 78% of
 what QLA removed, a magnitude set by observation rather than by the subgrid
 model. Both numbers are measured. Running the feedback model is not.
+
+## 2026-09-16 (fourth) — stage 11 on the provenanced pair
+
+Same re-derivation as the entry above, for the second headline.
+`figures/drain_z3_200.txt`, from `dp1d_boot.npz` at the CDM-referenced target
+and the stage 09 spectra, which are unchanged because they come from the
+snapshots rather than the sightlines.
+
+    quantity                production (1536)    new (600)
+    chi2/dof M3             2.42                 0.595
+    delta chi2 M2 -> M3     63.7                 17.63
+    g sign change           2.7 Mpc^-1           2.725 Mpc^-1
+    3D ratio range          0.806 to 1.59        0.7981 to 1.5943
+
+The delta chi2 falls by more than the 1/1.6^2 that larger error bars predict —
+24.5 expected, 17.6 measured — but M3 still beats M2 at equal parameter count
+by about 4.2 sigma, and the conclusion is unchanged: the P1D difference is the
+measured 3D gas difference, propagated.
+
+### The 1.8 sigma fit-free violation was noise
+
+The 2026-09-10 entry recorded one bin falling outside the positive-kernel
+bound at 1.8 sigma, described there as suggestive rather than demonstrated.
+**On independent ray positions every testable bin is inside, at n_sigma =
+0.00.** It was noise. Correct this wherever the 1.8 sigma is quoted.
+
+The lowest P1D bin still cannot be tested, because the 3D band starts at
+0.1515 Mpc^-1 and that bin sits at 0.1070. Unchanged, and still a box-size
+question.
+
+**A caveat on the stage's own wording.** When every bin falls inside, the
+stage prints "consistent with flux and gas changing by the same fraction".
+That overstates what the bound shows. The band is [0.798, 1.594] — wide — so
+falling inside is easy and is not a test of equality. The fitted amplitude is
+1.88, which is 9.7 sigma from 1. Both statements are true and the sentence
+invites misquoting them as one.
+
+### No free additive constant is needed
+
+    M3  alpha = 1.87927 +- 0.09081   c = 0.46864 +- 0.08502   chi2 = 4.16 / 7
+    M5  a_sup = 1.87927 +- 0.09081   a_exc = 2.84289 +- 0.22720  chi2 = 4.16 / 7
+
+M5 has no constant term and costs nothing against M3. **The two measured 3D
+components account for the whole P1D difference on their own.** The boost c
+that stage 10 fits as a free parameter — 3.77 km/s — is therefore not an extra
+ingredient: it is what the measured small-scale gas excess produces. The
+primordial excess does not need a parameter of its own in this fit; it is the
+gas excess.
+
+M4 remains degenerate by construction, cond(N) = 1e17, and the nesting
+inequality holds exactly at 4.16 <= 4.16. Read M5.
+
+### The two responses are different
+
+a_sup = 1.879 +- 0.091 is the flux response to the large-scale gas deficit;
+a_exc = 2.843 +- 0.227 is the response to the small-scale gas excess. They
+differ by 0.964 against a combined error of 0.245: **3.9 sigma.** The forest
+does not respond to the two halves of g(k) with one amplitude, which is the
+whole reason the split templates exist.
+
+That both are of order 2 is the order expected when the neutral fraction goes
+as the square of the density, but the value the fluctuating Gunn-Peterson
+approximation actually predicts has not been computed here. Suggestive, not a
+result.
+
+### Still a missing shape
+
+Residual signs: M2 `---+++++-`, M3 and M5 `-++++-++-`. Better than a single
+constant fraction, and still a run of four. chi2/dof of 0.595 on 9 bins is on
+the low side (p about 0.76), so the error bars may be slightly generous. The
+sign run is the thing to chase, not the chi2.
