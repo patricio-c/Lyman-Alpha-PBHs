@@ -40,6 +40,28 @@ the cluster is remote.
 
 # 0. Current status — read this first, every session
 
+> **Read `docs/LOGBOOK.md` and `docs/NARRATIVE.md` first. This section is
+> dated 2026-09-04 and parts of it are superseded.** It predates stages 09, 10
+> and 11, the ten-run suite, and the error bars. Specifically:
+>
+> - **Pending 4 ("error bars", "nothing at k < 0.007 s/km should be quoted")
+>   has run.** Stage 10 does a paired bootstrap with a Hartlap-corrected
+>   covariance, and `--exact-boot` re-solves `A` inside each resample and
+>   measures an inflation of 1.00x. The numbers are quotable. See the
+>   2026-09-08 and 2026-09-10 logbook entries.
+> - **Pending 6 ("V2 with Maria") has run**, and the answer was already on
+>   disk. See the 2026-09-16 entry: the two codes agree to 3.5% pixel by pixel.
+>   The instruction in that pending to *say the file is truncated* is wrong -
+>   V1 proved those sightlines complete, and the truncation bug belongs to the
+>   58.7372 Mpc box, not to murgia's 29.52 Mpc one.
+> - **Pending 1 (the sampling-noise floor) is now more urgent than it reads
+>   here, and its `f` is wrong for the pair that matters.** Use f = 0.414, the
+>   measured CDM-to-FCT tracer gap at z = 3, not the 0.084 written below for
+>   murgia.
+>
+> Everything below section 0 is stable background and is still accurate.
+
+
 **2026-09-04 — the QLA conversion census.** `docs/RESULTS_2026-09-04_qla_census.md`
 Six results measured on snapshots already on disk, plus a corrected sign
 bug in stage 06 that had inverted the murgia verdict. **Read section 7a
