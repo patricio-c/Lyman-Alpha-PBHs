@@ -425,3 +425,137 @@ is quotable until the jackknife runs; it ran, and the result is in the
 (the sampling-noise floor, with the wrong f) are likewise overtaken by this
 entry. A pointer belongs at the top of that section; the section itself is not
 rewritten.
+
+## 2026-09-16 (third) — the headline corroborated, and a default that moves it
+
+### The production numbers survive a clean re-derivation
+
+Stage 10 on `cache/{cdm,fct}40_z3_200.npz` — 600 sightlines at ray positions
+independent of the production 1536, extracted with full provenance and
+`--exact-voigt`, against caches that carry no provenance at all.
+
+    quantity   production (1536)      new (600)              agreement
+    f          0.2696  +- 0.0076      0.24897 +- 0.01229     1.4 sigma
+    c          4.087   +- 0.134       3.77001 +- 0.2127      1.3 sigma
+    n_eff      -0.554                 -0.5545
+    inflation  1.00x                  1.02x
+
+**The reproducibility hole is closed.** Every published number for this pair
+came from caches written before `common/prov.py` existed, with no record of
+the flags used. They are now corroborated from a path that records everything.
+
+Do not over-read the chi2/dof, which went from 11.5 to 3.11. That is not a
+better fit: 600 sightlines against 1536 give error bars 1.6x larger, and
+11.5/1.6^2 is about 4.5. M2 still fails its own sign-change test — predicted
+0.01788 s/km against a measured crossing at 0.01531 — which is the same
+missing shape that M3 supplies from the measured gas ratio.
+
+### A default that silently moves a headline number
+
+The first attempt at the above disagreed: c came out 2.96504 +- 0.186 against
+the production 4.087 +- 0.134, which is **4.9 sigma**. f agreed at 1.2 sigma.
+
+The cause was not sampling. Stage 10 defaults its common target to
+`units.tau_eff_turner24`, giving 0.37187 at z = 3, while every production
+number used the reference run's own raw tau_eff. Re-running with
+`--tau-eff 0.42989` moved c to 3.77 and the disagreement to 1.3 sigma.
+
+That f survives and c does not is exactly the expected signature: f is a
+fraction and c is an additive amplitude in km/s, so rescaling tau by A moves
+one and not the other.
+
+`tau_eff_turner24` is the confirmed bug of the 2026-09-03 session, valid only
+inside its calibration range. At z = 3 it is inside that range and is not
+wrong — it is simply a **different** normalisation from the one the HANDOFF
+prescribes ("the reference run's own raw value as the target, at every
+redshift"). **A default that changes a headline number by 27% without saying
+so is a bug even when both values are defensible.** Stage 10 should take the
+reference cache's own `tau_eff_raw` as its default, or refuse to run without
+an explicit `--tau-eff`. Recorded here rather than fixed, because fixing it
+changes numbers and that belongs in its own step.
+
+### Voigt is not the explanation for the SpecWizard residual
+
+Re-extracting `data/regen_cdm_z5.0_n100.hdf5` with `--exact-voigt` and
+comparing against the existing cache, which used the approximation:
+
+    tau_eff  2.8510450 approximate   2.8510911 exact
+    ln(exact/approximate) over 6234 unsaturated pixels:
+        median +0.0000, sigma 0.0001  ->  0.01%
+
+**Gap 5 of the V2 is closed.** Ours used an approximate Voigt and hers used no
+profile at all, and the difference between exact and approximate on our side
+is 0.01%. The 3.5% is the algorithm.
+
+Incidentally `wsum_raw_med` on that file is 0.923, against the 0.924 the
+HANDOFF records for cdm in murgia. Consistent.
+
+### The 3.5% does not propagate into P1D where P1D is measured
+
+Flux power ratio between the two tau fields, hers resampled onto our grid in
+fraction of box and matched on tau_eff:
+
+    k [s/km]   k [1/Mpc]   P_hers / P_ours
+     0.0138       1.28         0.9998
+     0.0275       2.55         1.0183
+     0.0562       5.21         1.0345
+     0.1101      10.22         1.0958   (5 sigma)
+     0.2191      20.32         1.0217
+
+The DESI window at z = 5 is 0.001 to 0.048 s/km. **Inside it the two codes'
+P1D agree to 3%**, so the 3.5% pixel scatter does not propagate into the
+measured quantity. **Gap 2 is closed where the forest is measured** and open
+above it: the 9.6% at k = 0.11 s/km is a 5 sigma, non-monotonic feature that
+white noise does not produce.
+
+**The three highest-k bins are not usable, and the cause is on our side.**
+Resampling with a linear interpolation is a low-pass filter whose power
+attenuation is about cos^4(k dv/2): at k = 0.44 s/km that predicts 0.84 and
+the bin measures 0.859. The decline at high k is the interpolation, not
+SpecWizard.
+
+This reverses an instruction given earlier the same day. It was argued that
+Maria need not re-run the z = 5 file with H from the header, because
+resampling cancels the grid difference. That is true for the pixel-by-pixel
+comparison, which is robust to it, and false for P1D at high k, where the
+interpolation sits in the middle of the measurement. The re-run is worth
+asking for.
+
+### Housekeeping that changes what path names mean
+
+`lyman/cdm-box-40-1024` and `lyman/2-fct-box-40-1024` — the production pair —
+were moved to `lyman/Old_sim/`, and the two directories previously named
+`cdm-box-80-1024` and `fct-box-80-1024` were renamed to take their place, to
+hold the new production runs with the line-of-sight output fixed.
+
+**Any path in this repository or in earlier entries of this logbook that
+reads `lyman/cdm-box-40-1024` refers to what is now under `lyman/Old_sim/`.**
+The `relosz.py` commands in the 2026-09-16 entry above are among them. The
+test runs were deliberately kept rather than deleted.
+
+The ex-`box-80` directories are still the one thing in this analysis that was
+never identified: they were named for an 80 Mpc/h box and contained a 40 Mpc/h
+initial condition with production softening. They now carry production names.
+
+### Suite checks before submitting
+
+- **No `*_range_*` lines** in any of the ten parameter files; the generator
+  documents their absence explicitly. The line-of-sight truncation bug will
+  not recur.
+- **Restarts are configured**: `delta_hours 3.0`, `max_run_time 11.0` under a
+  12-hour wall, `resubmit_on_exit 1`. Whether a run fits in twelve hours
+  stopped being a question.
+- The SWIFT binary exists at the renamed path.
+
+### Feedback: out of scope, with numbers
+
+The binary is built `--with-subgrid=QLA`; the subgrid model is a compile-time
+choice, so running with feedback is a second build with cooling and yield
+tables, not a parameter change. It is out of scope for this work.
+
+The statement that replaces it is quantitative rather than a hedge: the
+threshold is a short lever, since raising it tenfold recovers only ~1.3% of
+the gas; and for FCT to be consistent with the observed baryon budget at
+z = 3 a model with a return channel would have to put back roughly 78% of
+what QLA removed, a magnitude set by observation rather than by the subgrid
+model. Both numbers are measured. Running the feedback model is not.
