@@ -66,6 +66,16 @@ Usage
         --impose-trho 1.0e4 1.40 --out cache/cache_fct_iso140.npz
     python stages/01_extract_los.py --run fct40 --z 3.0 --no-normalize \\
         --out cache/cache_fct_nonorm.npz
+
+    # the sampling-noise control: delete a fraction of the CDM gas tracers so
+    # CDM samples the forest as sparsely as FCT does, WITHOUT changing the gas
+    # field. f = 0.414 is not tuned - wsum is exactly linear in particle
+    # number, and 0.8548 x (1 - 0.414) = 0.501 is FCT's measured value. The
+    # pair (cdm, cdm_thin) then has zero gas change by construction, so stage
+    # 10 on it returns pure sampling noise. That is the quantity degenerate
+    # with a_exc in stage 11. Stage 11 cannot be run on this pair: g == 0.
+    python stages/01_extract_los.py --run cdm40 --z 3.0 --npix 2048 \\
+        --exact-voigt --thin-frac 0.414 --out cache/cache_cdm_thin414.npz
 """
 
 from __future__ import annotations
@@ -157,6 +167,15 @@ def main():
     g.add_argument("--impose-trho", type=float, nargs=2, default=None,
                    metavar=("T0", "GAMMA"))
     g.add_argument("--max-b-violation", type=float, default=0.02)
+    g.add_argument("--thin-frac", type=float, default=0.0,
+                   help="borra esta fraccion de particulas de gas por rayo. "
+                        "Control de ruido de muestreo: bajo Shepard no mueve "
+                        "tau_eff, solo la varianza. f=0.414 lleva wsum_raw_med "
+                        "de CDM (0.855) al valor de FCT (0.501)")
+    g.add_argument("--thin-seed", type=int, default=12345)
+    g.add_argument("--thin-compensate", action="store_true",
+                   help="reescala masas por 1/(1-f). Bajo Shepard es un no-op "
+                        "exacto salvo donde muerde --w-floor: es un test nulo")
 
     g = ap.add_argument_group("output")
     g.add_argument("--geometry-only", action="store_true")
@@ -220,6 +239,12 @@ def main():
           + (f"   delta_max={args.delta_max}" if args.delta_max else "")
           + (f"   impose_trho={tuple(args.impose_trho)}"
              if args.impose_trho else ""))
+    if args.thin_frac > 0:
+        print(f"thin        f={args.thin_frac:.4f}  seed={args.thin_seed}  "
+              f"compensate={args.thin_compensate}")
+        print(f"            wsum_raw_med esperado ~ "
+              f"{0.8548 * (1 - args.thin_frac):.4f} si se parte del CDM 40/h "
+              f"a z=3; tau_eff no deberia moverse")
     print("=" * 72)
 
     if args.geometry_only:
@@ -237,7 +262,9 @@ def main():
               normalize=not args.no_normalize, w_floor=args.w_floor,
               delta_max=args.delta_max,
               impose_trho=tuple(args.impose_trho) if args.impose_trho
-              else None)
+              else None,
+              thin_frac=args.thin_frac, thin_seed=args.thin_seed,
+              thin_compensate=args.thin_compensate)
 
     tau = np.empty((len(names), args.npix), dtype=np.float32)
     diags = []
@@ -266,7 +293,8 @@ def main():
             ("wsum_raw_med", "SPH partition of unity before Shepard; 1.0 is "
                              "perfect sampling"),
             ("frac_below_floor", "pixels where the Shepard floor bit"),
-            ("frac_delta_cut", "fraction removed by --delta-max")):
+            ("frac_delta_cut", "fraction removed by --delta-max"),
+            ("frac_thin", "fraction actually removed by --thin-frac")):
         lo, md, hi = agg(key)
         print(f"  {key:20s} min {lo:10.4g}  med {md:10.4g}  max {hi:10.4g}"
               f"   {why}")
@@ -288,6 +316,8 @@ def main():
         delta_max=-1.0 if args.delta_max is None else args.delta_max,
         impose_trho=np.array(args.impose_trho if args.impose_trho
                              else [-1.0, -1.0]),
+        thin_frac=args.thin_frac, thin_seed=args.thin_seed,
+        thin_compensate=int(args.thin_compensate),
         los_names=np.array(names, dtype="S16"), tau_eff_raw=te)
     print(f"written -> {out}")
 

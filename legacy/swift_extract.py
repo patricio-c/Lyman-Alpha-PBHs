@@ -30,6 +30,7 @@ columna). T y v_par se promedian pesados por esa misma contribucion de HI.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import zlib
 
 import h5py
 import numpy as np
@@ -237,7 +238,9 @@ def extract_tau(path: str, los_name: str, npix: int, gamma_HI: float,
                 exact_voigt: bool = False, max_b_violation: float = 0.02,
                 normalize: bool = True, w_floor: float = 0.05,
                 delta_max: float | None = None,
-                impose_trho: tuple | None = None):
+                impose_trho: tuple | None = None,
+                thin_frac: float = 0.0, thin_seed: int = 12345,
+                thin_compensate: bool = False):
     """
     Devuelve (tau, dv, diag) para una linea de visión.
 
@@ -296,6 +299,48 @@ def extract_tau(path: str, los_name: str, npix: int, gamma_HI: float,
         coords_int = coords_int[keep]
         rho, T, vel = rho[keep], T[keep], vel[keep]
         hsml_int, mass = hsml_int[keep], mass[keep]
+
+    frac_thin = 0.0
+    if thin_frac > 0.0:
+        # Borrado compensado: saca una fraccion de las particulas de gas para
+        # reproducir el deficit de TRAZADORES de FCT sin tocar el campo de gas.
+        #
+        # Por que no se reescala hsml: en FCT tampoco se adapto. wsum_raw_med
+        # cae proporcional al numero de particulas (0.8548 x 0.5862 = 0.5011
+        # contra 0.5014 medido), asi que la particion de la unidad NO se
+        # recupera alli, y dejar hsml quieto es el mimetismo fiel.
+        #
+        # Por que esto no mueve tau_eff: n_HI y wsum son ambas lineales en el
+        # numero de particulas, y con Shepard lo que entra a tau es el
+        # cociente. Cambia la VARIANZA de muestreo y nada mas. Ese es el
+        # observable: un DeltaP1D a cambio de gas CERO, que es justo la
+        # cantidad degenerada con a_exc en la etapa 11.
+        #
+        # Limitacion: QLA no borra al azar, se lleva lo que cruzo Delta=1000,
+        # o sea su borrado esta correlacionado con la densidad. El borrado
+        # correlacionado genera MAS exceso a k alto que el aleatorio, asi que
+        # esto devuelve una COTA INFERIOR a la contaminacion de muestreo.
+        #
+        # La semilla depende del nombre de la LOS: cada rayo borra un
+        # subconjunto distinto, y el resultado es reproducible.
+        rng = np.random.default_rng(
+            (int(thin_seed) << 32) ^ zlib.crc32(los_name.encode()))
+        keep = rng.random(coords_int.shape[0]) >= thin_frac
+        frac_thin = float(1.0 - keep.mean())
+        if keep.sum() < 10:
+            raise ValueError(f"{los_name}: thin_frac={thin_frac} deja "
+                             f"{int(keep.sum())} particulas.")
+        coords_int = coords_int[keep]
+        rho, T, vel = rho[keep], T[keep], vel[keep]
+        hsml_int, mass = hsml_int[keep], mass[keep]
+        if thin_compensate:
+            # Bajo normalizacion Shepard esto se cancela EXACTAMENTE, pixel a
+            # pixel: n_HI y wsum son ambas lineales en la masa. El unico lugar
+            # donde no se cancela es donde muerde w_floor, porque ahi el
+            # denominador queda clampeado y el numerador no. Es un TEST NULO,
+            # no una correccion: si mueve algo fuera de los pixeles floreados,
+            # hay un bug.
+            mass = mass / (1.0 - frac_thin)
 
     # Geometria en cm propios.
     to_cm = c_len * meta.a
@@ -400,6 +445,8 @@ def extract_tau(path: str, los_name: str, npix: int, gamma_HI: float,
         "N_HI_total": float(n_HI.sum() * dR),
         "npart": len(x_par), "band_halfwidth": hw,
         "frac_delta_cut": frac_cut,
+        "frac_thin": frac_thin,
+        "thin_compensated": bool(thin_frac > 0.0 and thin_compensate),
     }
     return tau, dv, diag
 
