@@ -787,3 +787,65 @@ the resolution test is clean. The origin is exact -- the monofonIC config uses
 that the runs do not, and SWIFT puts the difference into curvature. It cancels
 in every ratio; it matters only if absolute P1D is ever quoted against a
 Planck baseline that includes 0.06 eV.
+\n
+## 2026-09-16 (sixth) — what a_exc actually measures, and why shot noise is degenerate with it
+
+A correction to the reading of the stage 11 split, worked out while preparing
+to present it. The numbers stand; the interpretation in the fourth entry --
+"a_exc is the response to the small-scale gas excess" -- is too strong.
+
+**The split is by the sign of g, not by scale.** `g_plus` is where FCT has less
+gas power and `g_minus` where it has more. That these land at large and small k
+is because g changes sign exactly once, at 2.725 Mpc^-1. No k cut was chosen;
+the data placed it.
+
+**a_sup is not the drain.** The drain is `g` itself -- the measured gas that is
+missing. a_sup = 1.879 is how strongly the flux responds to it. That it comes
+out near 2 is the order expected when the neutral fraction goes as the square
+of the density, but that calculation has not been done here.
+
+### The fit window lies almost entirely on the deficit side
+
+The DESI window at z = 3 is 0.00100 to 0.03185 s/km, which at 76.5820 Mpc^-1
+per s/km is **0.077 to 2.44 Mpc^-1**. The sign change is at **2.725**. So the
+window never reaches the region where g is negative.
+
+The excess template therefore enters the fit only through the tail of the
+integral, since `T[g](k)` integrates g over all k' > k. Stage 11 already
+reports this -- `T[g_minus]` is "nearly constant across the fit window", which
+is why M4 is degenerate against the free constant and why M5 works at all:
+**in the window, T[g_minus] IS the constant.**
+
+So `a_exc = 2.843 +- 0.227` is well measured, at twelve sigma from zero, but
+what it measures is **the integrated small-scale gas excess folded down into
+the window as a near-constant offset** -- not a response resolved in scale.
+
+### And shot noise has the same functional form
+
+White noise in tau is constant in k. So is `T[g_minus]` inside the fit window.
+**They are degenerate.** With `wsum_raw_med` at 0.855 in CDM against 0.501 in
+FCT -- half the SPH kernel weight falling on nothing -- there is a concrete
+reason to think some of a_exc is sampling rather than gas.
+
+This upgrades the compensated-deletion test from a check on the side to the
+measurement that decides whether a_exc is physics. It is the same test as
+before: delete a fraction f of the CDM gas particles, rescale the survivors'
+masses by 1/(1-f), re-extract, and tune f until CDM's partition of unity
+reaches FCT's 0.50. What it returns is not just a noise floor at high k -- it
+is a direct estimate of how much of the 2.84 is not gas.
+
+**What can be said today**, and what should be said when this is presented:
+the large-scale half is measured and understood; the small-scale half is
+measured and not yet separated from the sampling noise, and the test that
+separates them is designed and pending.
+
+### A note on the figure
+
+`figures/drain_z3_200.png` draws the fit-free bound as a flat band from 0.798
+to 1.594, the extremes of the 3D ratio over the kept band. Every testable P1D
+bin falls inside it, and the stage prints that the data are "consistent with
+flux and gas changing by the same fraction". The band is wide enough that
+falling inside is nearly free, and the fitted amplitude is 1.88, which is 9.7
+sigma from 1. Anyone reading the figure without that caveat will read
+agreement where there is none. Also, the M3 curve is invisible because M5 lies
+exactly on top of it -- which is itself the result, not a plotting fault.
