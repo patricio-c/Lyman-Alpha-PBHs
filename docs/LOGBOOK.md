@@ -630,3 +630,160 @@ Residual signs: M2 `---+++++-`, M3 and M5 `-++++-++-`. Better than a single
 constant fraction, and still a run of four. chi2/dof of 0.595 on 9 bins is on
 the low side (p about 0.76), so the error bars may be slightly generous. The
 sign run is the thing to chase, not the chi2.
+\n
+## 2026-09-16 (fifth) — the sampling gap, what sets the drain, and two false alarms
+
+Four things measured after the entries above, recorded together.
+
+### The sampling gap, measured (this belongs chronologically before the third entry)
+
+`stages/01_extract_los.py` on the 600-ray z = 3 files. The extractor's own
+diagnostics say more than the particle counts did.
+
+    wsum_raw_med       CDM 0.8548        FCT 0.5014
+    frac_below_floor   CDM 0 (max 0.002) FCT 0.0024 (max 0.019)
+
+`wsum_raw_med` is the SPH partition of unity before the Shepard correction:
+how much of the kernel weight finds particles. **Half of it falls on nothing in
+FCT.** The murgia case that `HANDOFF` pending 1 was written for showed
+0.924 -> 0.771; this pair shows 0.855 -> 0.501. And the Shepard floor
+intervened on up to 1.9% of FCT pixels against essentially never in CDM: those
+are pixels with too little gas to interpolate at all. Shepard renormalisation
+fixes the mean and not the variance.
+
+**This makes the compensated-deletion test calibratable.** The criterion for
+the test being correctly set up is that deleting a fraction f of the CDM gas
+particles brings CDM's `wsum_raw_med` down to ~0.50. Start at f = 0.414, the
+tracer gap, and tune against wsum rather than assuming it.
+
+Two consistency checks passed. Raw tau_eff from 600 independent ray positions
+is 0.42989 (CDM) and 0.40426 (FCT), against 0.42461 and 0.40350 from the
+production 1536-ray caches at different positions -- 1.2% and 0.2%. Ray
+placement is not biasing anything, and FCT is less opaque, as it must be if
+the threshold took more of its gas.
+
+Grid for those files, for the record and for the SpecWizard comparison:
+2048 px, v_box = 4497.9099 km/s, dv = 2.196245 km/s,
+H(z=3) = 306.3077 km/s/Mpc from `Cosmology/H`, Gamma_HI = 8.27580e-13 (HM12).
+
+### Where the SpecWizard comparison stands
+
+**Settled:** in the diffuse gas at z = 5 the two codes agree to 3.5% with a
+-0.5% median bias over 1087 pixels; the 2042-vs-2048 grid difference is fully
+accounted for by the H(z) convention; the flux power ratio is 1.00 to 1.03
+inside the DESI window, so the pixel scatter does not propagate into what is
+measured; and the Voigt profile is not the explanation, at 0.01%.
+
+**Not settled, in order of weight:** FCT, since the check is CDM only and the
+wsum numbers above say the extractor works in a different regime in each box;
+z = 3, where every production number lives; and the dense regime, which z = 5
+cannot reach at all.
+
+### What sets the drain: sigma at 10^8 M_sun, not the Nyquist scale
+
+Twelve runs in `lyman/more_power` -- six `NB` (broken primordial spectrum,
+f_pbh = 0) and six `poisson` (Poisson term, no break) -- share Panphasia phases
+with production and differ only in the transfer function. Conversion fractions
+come from header arithmetic; the transfer functions give the linear field at
+z = 200 exactly.
+
+Binning the density field on a scale R and asking which R makes both families
+fall on one curve gives **R = 0.067 Mpc/h, i.e. M = 1.05e8 M_sun/h**:
+
+    conv(z=7) = 3.06% x (sigma_R / sigma_R,CDM)^3.19     rms 7.6%
+
+Zero rank inversions across twelve models spanning a factor 7.4 in conversion
+(2.98% to 22.16%). Two different mechanisms, one relation.
+
+**The obvious label does not work.** Ranked by Delta^2 at the Nyquist scale the
+rank correlation with conversion is only +0.46, and the failure is stark:
+`poisson_1` has the most Nyquist power of all twelve (Delta^2 = 0.0500, at the
+2LPT ceiling) and converts 3.41%, while `NB_1` has seven times less (0.0069)
+and converts 10.12%. The three NB models with identical Delta^2 = 0.0291
+convert 22.16%, 14.53% and 6.22% -- a factor 3.6 at fixed Nyquist power.
+
+Power below ~10^8 M_sun does not convert gas, because those scales do not
+collapse. That is the scale where Colazo et al. (2025) find the FCT subhalo
+excess, which is a consistency rather than a derivation.
+
+**Production is outside the grid and the relation cannot be extrapolated.** At
+the same R, sigma_FCT/sigma_CDM for the production model is **6.17**, against a
+grid spanning 1.00 to 1.94. In raw power, P_FCT/P_CDM is 8 at k = 10 h/Mpc,
+285 at k = 40, and 1870 at k = 80. The power law predicts over 1000%
+conversion there, which is the fit announcing it has left its regime. The grid
+calibrates the mechanism; it does not predict production. A CDM run at the
+grid's own `sc` particle load would anchor the family on a measured zero
+instead of the `poisson_6` proxy used here.
+
+### False alarm 1: the 2LPT criterion
+
+Raised and withdrawn the same day, kept because the wrong number was quoted
+first.
+
+Production FCT (`IC_lyman_alpha/6_10^6/B40`) starts at z = 200 with
+`ParticleLoad = masked` and `GridRes = 1024` in a 40 Mpc/h box. Computing
+Delta^2 at the **monofonIC grid** Nyquist of 80.4 h/Mpc gives 1.63, which is
+33 times the Delta^2 <= 0.05 criterion used to design the twelve-model grid.
+That number was quoted as a possible invalidation of the production run.
+
+**It is the wrong k.** With a masked load the grid is not what the simulation
+represents. Gas sits on 512^3 and dark matter on 4 x 512^3, so:
+
+    k_Nyq [h/Mpc]              Delta^2 FCT
+    80.4   monofonIC grid         1.63     <- not the relevant scale
+    63.8   dark matter particles  0.83
+    40.2   gas particles          0.205
+
+Four times over at the gas Nyquist and seventeen at the dark matter one, not
+thirty-three. `IC_lyman_alpha/Validate_ic.py` makes exactly this argument in
+its docstring and it is the standard one.
+
+Two further points, and the second closes it. Reproducing the input P(k) --
+which is what `Validate_ic.py` checks -- is necessary but not sufficient,
+because a 2LPT field with Delta^2 ~ 1 still reproduces the linear P(k) at
+z_start; what degrades is the higher-order displacement, which the power
+spectrum cannot see. But **2LPT transients decay as a^-2**, so from z = 200 to
+z = 3 the error is suppressed by (201/4)^2 ~ 2500, and at Delta^2 between 0.2
+and 0.8 there is no shell crossing in the initial conditions. The concern does
+not survive that.
+
+Closed unless a direct measurement of Delta^2 from the initial-condition
+particle distribution says otherwise.
+
+### False alarm 2, and one real problem, from the same logs
+
+Job `1534358`, reported as `FAILED` with exit code 1 after 27 seconds, was
+**the dry run**, and it passed: *"Time integration ready to start. End of
+dry-run."* The exit code is the usual MPI complaint at teardown. It was
+briefly treated as a startup failure in a queued run.
+
+The dry run did confirm the suite is sound: threshold 3000 applied where
+intended, the correct initial conditions read, 16777216 gas and 67108864 dark
+matter particles, softening 0.003600 / 0.001400 Plummer, all three output
+lists read, restarts every three hours, and `--line-of-sight` and `--power`
+both in the engine policies. No `*_range_*` lines anywhere in the ten
+parameter files, so the line-of-sight truncation bug will not recur.
+
+**The real problem is in the leg (a) initial conditions, and both are
+affected.** `slurm-1531635.out` (FCT) and the corresponding CDM job both ended
+`CANCELLED ... DUE TO TIME LIMIT` at 20:07 and 20:12. The FCT log shows all
+eight ranks writing `PartType1` and **only two of eight writing `PartType0`**
+before the kill. The two leg (c) jobs, eight times smaller, completed in 2:39
+and ended `Done writing SWIFT IC file`.
+
+So `IC_N1024B080_200_{cdm,fct}.hdf5` are truncated in their gas. Both were
+regenerated with a longer wall time, and the SWIFT jobs waiting on them were
+held. The check that they came out whole is the header `NumPart_Total`
+against the actual dataset lengths, plus gas masses that are not zero.
+
+### A note on the cosmology, settled
+
+The dry run reports `Omega_k = 0.001389` and `N_nu = 0`. The production z = 3
+line-of-sight file reports `Omega_k = 0.00138918`, `N_nu = 0`: identical, so
+the resolution test is clean. The origin is exact -- the monofonIC config uses
+`Omega_m = 0.306` with `m_nu1 = 0.06`, while the SWIFT parameter files declare
+`Omega_cdm + Omega_b = 0.3046109` with no neutrino block, and
+0.306 - 0.3046109 = 0.0013891. The initial conditions carry a massive neutrino
+that the runs do not, and SWIFT puts the difference into curvature. It cancels
+in every ratio; it matters only if absolute P1D is ever quoted against a
+Planck baseline that includes 0.06 eV.

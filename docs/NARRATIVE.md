@@ -175,14 +175,20 @@ above, so they can proceed in parallel with the suite.
 7. **The sampling-noise floor of the extractor**, which is new and which
    threatens the small-scale half of the result rather than the large-scale
    half. FCT sightlines carry 3451 gas particles at the median against 5887 in
-   CDM — 41% fewer tracers, because 49.8% of the baryons were converted. A
+   CDM — 41% fewer tracers, because 49.8% of the baryons were converted. The
+   extractor's own diagnostic is blunter: the SPH partition of unity before the
+   Shepard correction is 0.855 in CDM and **0.501** in FCT, and the Shepard
+   floor intervenes on up to 1.9% of FCT pixels against essentially never in
+   CDM. Shepard fixes the mean and not the variance. A
    sparser SPH density is a noisier one, and that noise is white: it cannot
    reach the scales where the deficit lives, and it does inflate the small
    scales where the excess lives. Whether the excess at k = 27 Mpc⁻¹ survives
    at matched sampling has not been measured. The test is cheap: delete 41.4%
    of the gas particles from the CDM sightlines, multiply the survivors' masses
    by 1/(1−f) so the mean density and the mean flux do not move, and
-   re-extract. What comes out is the noise floor at FCT's sampling.
+   re-extract. The test is calibrated by requiring that the deletion brings
+   CDM's partition of unity down to FCT's 0.50; tune f against that rather than
+   assuming it. What comes out is the noise floor at FCT's sampling.
 
 ## Why the evolution is the point
 
