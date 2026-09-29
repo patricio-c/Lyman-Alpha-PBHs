@@ -4,7 +4,7 @@
 no history — for that, and for the things that turned out to be wrong, see
 [`LOGBOOK.md`](LOGBOOK.md), which is append-only.
 
-Last rewritten: 2026-09-16.
+Last rewritten: 2026-09-29.
 
 ---
 
@@ -90,9 +90,11 @@ by pixel with a median bias of −0.5%, in the diffuse gas the forest measures.
 That check is at z = 5, where 97% of pixels are saturated and say nothing; it
 certifies the diffuse regime and not the dense one.
 Replacing an assumed constant
-suppression with the measured shape improves the fit by **Δχ² = 63.7 at equal
+suppression with the measured shape improves the fit by **Δχ² = 17.6 at equal
 parameter count** — a measurement substituted for an assumption, with no new
-freedom — taking χ²/dof from 11.5 to 2.42.
+freedom — taking χ²/dof from 3.11 to 0.595. Dropping the free additive constant
+entirely costs nothing (χ²(M5) = χ²(M3) = 4.16): the two measured 3D components
+account for the flux difference on their own.
 
 The measured suppression **changes sign** near k ≈ 2.7 Mpc⁻¹: less gas power at
 large scales, more at small scales. Both halves of the flux signature come from
@@ -104,9 +106,13 @@ average of the ratio of their 3D curves, and therefore lies between that
 ratio's extremes above every k. Two things follow: a deficit in P1D **requires**
 a deficit in 3D and cannot be manufactured by how the integral weights small
 scales; and if the measured ratio falls outside the allowed band, flux power
-and gas power are not changed by the same fraction. At present the violation is
-1.8σ in one bin — suggestive, not a demonstration — and the most informative
-bin cannot be tested because the 3D measurement does not reach low enough k.
+and gas power are not changed by the same fraction. On the provenanced pair
+every testable bin is inside the band, at n_sigma = 0.00 — the 1.8σ violation
+reported earlier was noise. The band is wide enough that falling inside it is
+nearly free, and the fitted amplitude is 1.88, which is 9.7σ from 1, so the
+figure must not be read as agreement. The most informative bin still cannot be
+tested, because the 3D measurement does not reach low enough k: that is a
+box-size question, not an analysis one.
 
 ## The open question, and the suite that decides it
 
@@ -172,23 +178,58 @@ above, so they can proceed in parallel with the suite.
    re-run with the line-of-sight output fixed. Every P1D number here comes from
    regenerated rays, and that substitution has not yet been checked against the
    thing it replaced.
-7. **The sampling-noise floor of the extractor**, which is new and which
-   threatens the small-scale half of the result rather than the large-scale
-   half. FCT sightlines carry 3451 gas particles at the median against 5887 in
-   CDM — 41% fewer tracers, because 49.8% of the baryons were converted. The
-   extractor's own diagnostic is blunter: the SPH partition of unity before the
-   Shepard correction is 0.855 in CDM and **0.501** in FCT, and the Shepard
-   floor intervenes on up to 1.9% of FCT pixels against essentially never in
-   CDM. Shepard fixes the mean and not the variance. A
-   sparser SPH density is a noisier one, and that noise is white: it cannot
-   reach the scales where the deficit lives, and it does inflate the small
-   scales where the excess lives. Whether the excess at k = 27 Mpc⁻¹ survives
-   at matched sampling has not been measured. The test is cheap: delete 41.4%
-   of the gas particles from the CDM sightlines, multiply the survivors' masses
-   by 1/(1−f) so the mean density and the mean flux do not move, and
-   re-extract. The test is calibrated by requiring that the deletion brings
-   CDM's partition of unity down to FCT's 0.50; tune f against that rather than
-   assuming it. What comes out is the noise floor at FCT's sampling.
+7. **The matter power ratio at z = 3**, which is now the one measurement
+   blocking the sharpest statement this work can make. See below.
+
+## The sampling floor, measured and closed
+
+The extractor's own diagnostic said FCT samples the forest half as well as CDM:
+the SPH partition of unity before the Shepard correction is 0.855 in CDM and
+**0.501** in FCT, and the Shepard floor bites on up to 1.9% of FCT pixels
+against essentially never in CDM. Shepard fixes the mean and not the variance,
+and that noise is white — the same functional form, inside the fit window, as
+the small-scale excess template. The two were degenerate.
+
+They have been separated by deleting 41.4% of the gas particles from the CDM
+sightlines and re-extracting, which reproduces FCT's tracer sparsity at
+**zero gas change**. The calibration is a prediction rather than a fit, because
+the partition of unity is exactly linear in particle number: 0.8548 × 0.5862 =
+0.501, which is FCT's measured value to 0.1%. The FCT sampling deficit is
+therefore pure tracer count, with no adaptation of the smoothing length.
+
+The floor that comes out is **0.033 ± 0.009 km/s**, against a small-scale term
+of 1.383 km/s. Sampling accounts for **2.4% of a_exc**, a third of one error
+bar. The correlated deletion that QLA actually performs would have to be twenty
+times worse than random to change the conclusion, and the evidence says about
+twice. The small-scale half of the result stands.
+
+## The rise with k survives, and the attenuation is the headline
+
+Outside the DESI window the thinning does produce power — a 2.6% excess at 6.9σ
+near 10 Mpc⁻¹, a hump rather than flat white noise, dead by 19 Mpc⁻¹ and
+running the other way above 20. It accounts for at most 13% of the measured
+excess, and correcting for it above 20 Mpc⁻¹ makes that excess larger. The
+flux ratio rises with k, and so does the measured 3D gas ratio: 0.806 at
+0.15 Mpc⁻¹, crossing 1 at 2.7, and 1.594 at 27.3 and still rising where the
+band is cut at the grid Nyquist.
+
+Against the production linear matter ratio at matched wavenumber:
+
+```
+k ~  6.8 Mpc⁻¹    linear    8     measured gas  1.14
+k ~ 27.2 Mpc⁻¹    linear  285     measured gas  1.59
+k ~ 54.5 Mpc⁻¹    linear 1870     measured P1D  ~2.16
+```
+
+A factor 1870 arrives as 2.1. The qualitative signature survives — both curves
+rise with k, and that rise is now established as physical — but three orders of
+magnitude of amplitude do not. What is not yet separated is how much of that
+compression is non-linear gravity, how much is gas physics, and how much is the
+density threshold. That needs the matter power ratio at z = 3 in the same bins,
+which is open item 7 and a Pylians run on snapshots already on disk. The figure
+it produces — matter and gas ratios overplotted, the gap between them being the
+threshold — is the one that turns this into a statement about method rather
+than about one model.
 
 ## Why the evolution is the point
 

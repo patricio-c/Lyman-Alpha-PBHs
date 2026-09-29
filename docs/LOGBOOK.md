@@ -849,3 +849,107 @@ falling inside is nearly free, and the fitted amplitude is 1.88, which is 9.7
 sigma from 1. Anyone reading the figure without that caveat will read
 agreement where there is none. Also, the M3 curve is invisible because M5 lies
 exactly on top of it -- which is itself the result, not a plotting fault.
+
+## 2026-09-29 — the sampling floor measured; a_exc survives, and the rise with k is physical
+
+The compensated-deletion test designed in the `(sixth)` entry was implemented
+(`--thin-frac` in stage 01, commit 8fe8d01) and run. It decides the question
+that entry left open.
+
+### Two corrections to the test as it was designed
+
+**The 1/(1-f) mass rescale is not the default, and would have broken the
+calibration.** `n_HI` and `wsum` are both linear in the particle mass, so under
+Shepard normalisation the rescale cancels exactly, pixel by pixel -- including
+cancelling the very `wsum` drop the test calibrates against. It survives as
+`--thin-compensate`, a null test; the only place it does not cancel is where
+`w_floor` bites. What preserves tau_eff is not the rescale: it is that `n_HI`
+and `wsum` are both linear in the particle NUMBER too, so the Shepard-corrected
+field is insensitive to tracer count in the mean.
+
+**f = 0.414 was not tuned.** E[wsum] = (1-f) wsum_full exactly, so the
+calibration is a prediction, not a fit: 5887 particles per ray in CDM against
+3451 in FCT gives f = 0.4138, and 0.8548 x 0.5862 = 0.5011 against FCT's
+measured 0.5014. **The FCT partition-of-unity deficit is therefore pure tracer
+count.** hsml did not adapt to the sparser spacing -- if it had, the partition
+of unity would have been restored -- which is why the test deliberately does
+not rescale hsml either.
+
+The run came out where predicted: `wsum_raw_med` 0.4934 (slightly past FCT's
+0.5014, so the floor is if anything generous), `frac_thin` 0.4147, and
+`tau_eff` 0.43081 against 0.42989 -- **0.21%**, which measures the linearity
+claim instead of assuming it.
+
+### The floor, and a_exc
+
+Stage 10 on (cdm, cdm_thin), zero gas change by construction, DESI window:
+
+    M0   c = 3.278e-02 +- 8.770e-03 km/s      chi2/dof = 2.081
+    M2   c = -8.17e-03 +- 2.42e-02 km/s       (consistent with zero)
+
+Stage 11 does not print `T[g_minus]`, but it follows from the model algebra:
+M3 and M5 are the same fit, so 1.87927 T[g-] + 0.46864 = 2.84289 T[g-] gives
+**T[g-] = 0.4863 km/s**, constant across the window. M4 gives 0.48633 by an
+independent route. The small-scale term therefore contributes
+a_exc x T[g-] = 1.383 km/s to DP1D.
+
+    sampling contamination of a_exc = 0.0328 / 0.4863 = 0.067
+    a_exc measured                  = 2.843 +- 0.227
+    a_exc corrected                 = 2.776
+
+**Sampling accounts for 2.4% of a_exc, a third of one error bar.** For the
+conclusion to change, the correlated floor would have to be ~20x the random
+one; the evidence available says ~2x (the Shepard floor bit on 0.88% of thinned
+CDM pixels against 1.9% in FCT). The degeneracy identified in the `(sixth)`
+entry is real in form and negligible in size. **The small-scale half of the
+result is now separated from the noise**, and the `(sixth)` entry's closing
+statement -- that it was measured but not separated -- no longer holds.
+
+### Outside the fit window, the thinning does bite, and the rise still survives
+
+Stage 10 with `--window all` on both pairs, same bins. Ratios:
+
+    k [Mpc^-1]   real            thinning only     real corrected
+      9.95       1.2759 0.0181   1.0260 0.0039     1.250
+     13.64       1.1615 0.0197   1.0213 0.0042     1.140
+     18.61       1.1255 0.0335   1.0035 0.0055     1.122
+     25.41       1.4191 0.0925   0.9809 0.0130     1.438
+     34.77       2.1661 0.3003   0.9661 0.0335     2.200
+     47.50       2.1167 0.4331   0.9564 0.0566     2.160
+
+Random deletion alone produces a 2.6% excess at 6.9 sigma near 10 Mpc^-1 --
+a hump, not flat white noise, peaking near 10 and dead by 18.6. It is entirely
+outside the DESI window (which ends at 2.44 Mpc^-1) so it touches no fit. It
+accounts for at most 13% of the real excess, and **above 20 Mpc^-1 it runs the
+other way**, so correcting for it makes the real excess larger.
+
+The measured 3D gas ratio rises monotonically over the same range: 0.8055 at
+0.15, crossing 1 at 2.725, and **1.5943 at 27.33 Mpc^-1 and still rising**
+where the band is cut at the grid Nyquist of 27.3846.
+
+### The attenuation is the result
+
+Against the production linear matter ratio at matched k:
+
+    k ~  6.8 Mpc^-1    linear    8     measured gas  1.14
+    k ~ 27.2 Mpc^-1    linear  285     measured gas  1.59
+    k ~ 54.5 Mpc^-1    linear 1870     measured P1D  ~2.16
+
+**A factor 1870 arrives as 2.1.** The qualitative signature survives -- both
+curves rise with k, and that rise is now established as physical rather than
+sampling -- but three orders of magnitude of amplitude do not. That is a
+sharper statement than "the P1D preserves the linear signature", and it is a
+warning to anyone using a density threshold to constrain small-scale power.
+
+**What it does not yet separate** is how much of that compression is non-linear
+gravity, how much is gas physics, and how much is the threshold. That needs
+`r_matter(k)` at z = 3 in the same bins; `figures/pk_z3_{CDM,FCT}.txt` are gas.
+It is a Pylians run on the z = 3 snapshots and it is the missing figure: matter
+and gas ratios overplotted, the gap between them being the threshold.
+
+### One trap in that output
+
+The M0 and M2 fits printed by the `--window all` run are meaningless --
+chi2/dof of 60.8 and 63.7, and f = -0.0113. Fitting a constant fraction across
+a ratio that runs from 0.76 to 2.17 has no content. That run is for the table
+only; `f = 0.249 +- 0.012` from the DESI window remains the number.
