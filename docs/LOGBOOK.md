@@ -1055,3 +1055,35 @@ P1D ratio points from the 2026-09-29 `--window all` run, which were never
 written to a file and are carried in the stage with their provenance. The
 M0/M2 fits from that run remain meaningless (χ²/dof 60.8, f = −0.011) and
 are deliberately not carried.
+
+## 2026-10-14 (second) — handoff: section 0 rewritten, the suite has finished
+
+No new measurement. Recorded because the next session starts cold.
+
+`HANDOFF` section 0 had been dated 2026-09-04 with a growing list of
+"superseded" notices on top of it, which is the failure mode that file warns
+about. It is now rewritten as of today and the old one is kept, unaltered,
+as section 0-bis, because its Murgia cross-validation tables and its QLA
+census are the provenance of numbers still in use. Its punch list is marked
+dead rather than deleted.
+
+**Pato reports the new simulations have finished running.** Nothing has been
+analysed. The state as reported: the ten forest runs behind the suite, with
+the deciding pair being jobs 1534768 / 1534769 (leg (c) base, z_reio 7.5,
+Δ = 1000); jobs 1534772 / 1534773 for leg (a), released after its initial
+conditions were regenerated whole; and the twelve `more_power` runs, last
+seen crossing z ≈ 3.4. The Clementina working tree was `-dirty` over commit
+`50812891`: there are uncommitted local changes there.
+
+The three things that come next, with their commands, are in section 0. The
+order is: the resolution leg (the question the suite was built for), then the
+Δ = 3000 leg (which today's result promotes from control to measurement),
+then a second redshift, which every new run can now supply because they all
+carry the z = 5 → 2 output list.
+
+One caveat worth repeating here because it will decide whether the new runs
+can be used directly: the new parameter files carry no `*_range_*` lines, so
+their line-of-sight output should be whole. If it is, the substitution that
+every P1D number in this repository rests on — regenerated rays in place of
+SWIFT's own — can finally be checked against the thing it replaced, which is
+narrative open item 6.

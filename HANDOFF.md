@@ -40,26 +40,169 @@ the cluster is remote.
 
 # 0. Current status — read this first, every session
 
-> **Read `docs/LOGBOOK.md` and `docs/NARRATIVE.md` first. This section is
-> dated 2026-09-04 and parts of it are superseded.** It predates stages 09, 10
-> and 11, the ten-run suite, and the error bars. Specifically:
->
-> - **Pending 4 ("error bars", "nothing at k < 0.007 s/km should be quoted")
->   has run.** Stage 10 does a paired bootstrap with a Hartlap-corrected
->   covariance, and `--exact-boot` re-solves `A` inside each resample and
->   measures an inflation of 1.00x. The numbers are quotable. See the
->   2026-09-08 and 2026-09-10 logbook entries.
-> - **Pending 6 ("V2 with Maria") has run**, and the answer was already on
->   disk. See the 2026-09-16 entry: the two codes agree to 3.5% pixel by pixel.
->   The instruction in that pending to *say the file is truncated* is wrong -
->   V1 proved those sightlines complete, and the truncation bug belongs to the
->   58.7372 Mpc box, not to murgia's 29.52 Mpc one.
-> - **Pending 1 (the sampling-noise floor) is now more urgent than it reads
->   here, and its `f` is wrong for the pair that matters.** Use f = 0.414, the
->   measured CDM-to-FCT tracer gap at z = 3, not the 0.084 written below for
->   murgia.
->
-> Everything below section 0 is stable background and is still accurate.
+**Last rewritten 2026-10-14.** This section is the punch list and it is
+rewritten whenever it stops being true. Everything from section 1 down is
+stable background. Read, in this order:
+
+1. this section,
+2. [`docs/NARRATIVE.md`](docs/NARRATIVE.md) — the current best telling,
+   always rewritten, no history,
+3. the last three or four entries of [`docs/LOGBOOK.md`](docs/LOGBOOK.md) —
+   append-only, including the things that turned out to be wrong.
+
+Section 0-bis below is the 2026-09-03/04 session, kept because its tables are
+the provenance of the Murgia cross-validation and the QLA census. **Its punch
+list is dead; do not work from it.**
+
+---
+
+## What is settled, with the number and where it lives
+
+- **The cross-validation against Murgia+2019.** Their Figure 1 was recovered
+  exactly from the arXiv vector source. Our 1D flux ratio sits within ~15% of
+  their published curve across the fitted window and our non-linear matter
+  power matches theirs to ~0.2 percentage points. Section 0-bis, and
+  `notebooks/murgia_vs_swift.py`. This is what makes everything else credible.
+- **The extractor has an external check.** SpecWizard, run by Maria
+  Marinichenko on the same sightlines, agrees to 3.5% pixel by pixel with a
+  −0.5% median bias, and to 3% in P1D inside the DESI window. At z = 5 and in
+  diffuse gas only; z = 5 cannot reach the dense regime. 2026-09-16 entries.
+- **The z = 3 FCT/CDM flux deficit is real and is the gas.** ΔP1D = −12.6 ±
+  0.7 km/s at the largest measured scale, 18σ from zero; the measured 3D gas
+  difference propagated through the P1D kernel accounts for it with no free
+  additive constant (M5 = M3, χ² = 4.16/7). Stages 10 and 11.
+- **The sampling floor is measured and does not matter.** Compensated
+  deletion (`--thin-frac`, stage 01) gives a floor of 0.033 ± 0.009 km/s
+  against a small-scale term of 1.383 km/s: 2.4% of `a_exc`. `f = 0.414` was
+  predicted, not tuned. The 1/(1−f) mass rescale is an exact no-op under
+  Shepard and would have cancelled the calibration. 2026-09-29 entry.
+- **The attenuation, and who does it.** A linear matter ratio of 1870 arrives
+  at the forest as about 2.1. Non-linear gravity does 99.6% of that
+  compression on its own; everything baryonic does the remaining factor 1.9.
+  The density threshold owns the *large-scale* half of the signal instead,
+  where the matter ratio is 1.0002 and the gas ratio 0.8055. Stage 12,
+  `figures/matter_vs_gas_z3.png`, 2026-10-14 entry.
+
+## The headline numbers, so they are not re-derived
+
+    f (DESI window, z = 3)        0.249 +- 0.012       stage 10
+    a_sup / a_exc                 1.879 +- 0.091 / 2.843 +- 0.227   stage 11
+    g sign change                 2.725 Mpc^-1
+    gas ratio                     0.8055 (0.15)  ->  1.5943 (27.3 Mpc^-1)
+    matter ratio                  1.0002 (0.15)  ->  1.8908 (27.3 Mpc^-1)
+    dark matter ratio             0.9975 (0.15)  ->  2.1437 (27.3 Mpc^-1)
+    QLA conversion                14.08% CDM   49.83% FCT   (particle counts)
+    tau_eff raw, z = 3            0.42989 CDM   0.40426 FCT  (600 rays)
+
+## State of the runs, as reported by Pato on 2026-10-14
+
+**The new simulations are finished.** They are not analysed. What exists:
+
+- Ten forest runs on Clementina (`snmgt01`), 4 nodes each, from the four sets
+  of initial conditions specified in
+  [`docs/RUNS_2026-09-08_convergence_and_reionization.md`](docs/RUNS_2026-09-08_convergence_and_reionization.md):
+  a large-box leg, a low-resolution leg at matched particle mass, three
+  reionization redshifts in both models, and a threshold variation
+  (Δ = 3000) in both models.
+  **The deciding pair is jobs 1534768 / 1534769** — leg (c) base, z_reio 7.5,
+  Δ = 1000. Jobs 1534772 / 1534773 are leg (a), released after its initial
+  conditions were regenerated whole (the first pair were truncated in gas —
+  see the 2026-09-16 fifth entry; check `NumPart_Total` against the dataset
+  lengths and that gas masses are non-zero before trusting them).
+- Twelve `lyman/more_power` runs (six `sw_NB_*`, six `sw_poisson`), which
+  were crossing z ≈ 3.4 when last looked at.
+- Every run in the suite carries the z = 5 → 2 output list, so the
+  single-redshift problem is fixable from them.
+
+**Ask Pato for the current queue state before planning anything**, and note
+that the working tree on Clementina was `-dirty` over commit `50812891` on
+2026-10-14: there are local changes there that were never committed. Reconcile
+before trusting a path or a script on the cluster. Claude cannot log in to
+Clementina — it is password-only — so every cluster command goes to Pato to
+run and paste back.
+
+## The next three things, each with the command that decides it
+
+1. **Does the drain survive at one eighth the mass resolution?** The question
+   the whole suite was built for, and the cheapest run answers it. Compare the
+   conversion fraction and the gas ratio between legs (b) and (c) at matched
+   particle mass. If the drain amplitude is stable the large-scale signature
+   is a prediction of the model; if it moves, it is a resolution artefact and
+   becomes an upper bound. Both outcomes are results.
+
+        python stages/06_gas_census.py --snap <leg-b z=3 snapshot> --ics <...>
+        python stages/09_gas_power.py --snap <...> --ics <...> --label LOWRES \
+            --ngrid 512 --swift-pk <...>/power_matter_*.txt --out figures/pk_z3_lowres
+
+2. **Split pressure smoothing from the density threshold.** Stage 12 measured
+   that everything baryonic costs a factor 1.9 at k = 27 Mpc⁻¹ but cannot say
+   how much of it is the threshold. The Δ = 3000 leg does, by differencing
+   `r_gas` at two thresholds with everything else fixed. This promotes that
+   leg from control to measurement.
+
+        python stages/09_gas_power.py --snap <Δ=3000 FCT z=3> --ics <...> \
+            --label FCT_T3000 --out figures/pk_z3_FCT_T3000
+        python stages/12_matter_vs_gas.py --cdm figures/pk_z3_CDM.npz \
+            --fct figures/pk_z3_FCT_T3000.npz --out figures/matter_vs_gas_T3000
+
+3. **A second redshift.** The entire method is about redshift evolution and
+   there is still a single point, at z = 3. Every new run carries the output
+   list; extract and run stages 10 and 11 at z = 2.2 and z = 4 on the same
+   pair, with the reference run's own raw `tau_eff` as the target at each
+   redshift.
+
+## Traps that have bitten more than once
+
+- **`units.tau_eff_turner24` is not the house normalisation.** Stage 10
+  defaults its common target to it, which at z = 3 moves `c` by 27% in
+  silence. Every production number uses *the reference run's own raw
+  `tau_eff`*. Always pass `--tau-eff` explicitly. Not fixed; see the pending
+  list.
+- **`figures/pk_z3_*.txt` are not gas files.** They have seven data columns.
+  The 2026-09-29 entry got this wrong and it cost a month on open item 7.
+- **Stage 10 with `--window all` prints meaningless M0/M2 fits** (χ²/dof 60.8,
+  f = −0.011). That run is for the ratio table only. `f = 0.249 ± 0.012` from
+  the DESI window is the number.
+- **Do not compare runs with SWIFT's `cdm-cdm` spectrum.** In a QLA run
+  `PartType1` is dark matter plus the converted baryons, so it is a different
+  physical quantity in each run. Only `matter-matter` divides cleanly.
+- **Paths: `lyman/cdm-box-40-1024` in any entry before 2026-09-16 means what
+  is now under `lyman/Old_sim/`.** The directories were renamed.
+- **Every P1D number in this repository comes from regenerated sightlines**
+  (`relos.py --uniform 512 --seed 12345`), because SWIFT's own LOS output for
+  the production pair was truncated. The new suite has no `*_range_*` lines,
+  so its LOS output is usable and that substitution can finally be checked.
+
+## Pending, none of it blocking the three above
+
+- `common/units.py` has `Omega_m = 0.3053`; the runs declare `0.3046109`.
+- The `$VREL` bug in `make_ics.sh`.
+- Stage 10's `tau_eff` default, above.
+- A CDM run at the `more_power` grid's own `sc` particle load, to anchor the
+  twelve-model relation on a measured zero instead of the `poisson_6` proxy.
+- The z = 3 delivery for Maria: four files into `external/specwizard/`, plus
+  `tests/t13_specwizard.py`. The z = 5 comparison should also be re-run with
+  H read from the SWIFT header, which matters for P1D above the window.
+- `b(k,z)`: `tests/t11_bias_bk.py` is written and needs `A_P`, `A_b` and
+  `k_max`. `A_P` and `A_b` are calculable from the production transfer
+  function (`IC_lyman_alpha/6_10^6/B40`), not fitted. That same transfer
+  function replaces the interpolated linear curve in stage 12.
+- The common DESI `(k1, k2)` window across redshift bins, before any
+  integrated observable is quoted. `common.units.common_window` currently
+  uses an analytic resolution approximation and needs the real arrays.
+- The 3.5× converted-mass ratio against the observed stellar mass density,
+  normalised so that CDM matches observations.
+
+---
+
+# 0-bis. The 2026-09-03/04 sessions, kept for their tables
+
+> **Historical.** The Murgia cross-validation tables, the normalisation
+> argument and the QLA census below are still the provenance for those
+> numbers. The punch list and the pendings in this section are dead: pending 1
+> (the sampling floor) ran on 2026-09-29 with `f = 0.414`, pending 4 (error
+> bars) ran on 2026-09-08, and pending 6 (SpecWizard) ran on 2026-09-16. The
+> instruction to tell Maria the file is truncated is wrong — it is not.
 
 
 **2026-09-04 — the QLA conversion census.** `docs/RESULTS_2026-09-04_qla_census.md`
@@ -75,9 +218,9 @@ repo for that pair rests on LOS regenerated with
 those runs is truncated, and that it must be re-validated on SWIFT
 sightlines once a run is made with the LOS output configured correctly.
 
-Updated 2026-09-03. This section is the fast-changing punch list; the rest of
-the file is stable background. Start every new session here, and dip into the
-numbered sections below only for the *why* behind something.
+Updated 2026-09-03, and superseded by section 0 above — this paragraph is
+kept only because the tables that follow it are referenced elsewhere. Do not
+start a session here.
 
 **The headline, if you read nothing else.** We reproduce Murgia+2019 with an
 independent code. Their Figure 1 was recovered exactly from the arXiv vector
@@ -1184,8 +1327,10 @@ distributed-git discipline applies, nothing special:
 ## 10. Working across Claude sessions
 
 This file is written so that a new Claude session can pick up the project
-cold: read section 0 for what is done and what is next, and the rest for
-context as needed. The convention going forward:
+cold: read section 0 for what is done and what is next, then
+`docs/NARRATIVE.md` for the current telling and the last few entries of
+`docs/LOGBOOK.md` for how it got there, and the rest of this file for context
+as needed. The convention going forward:
 
 - **At the end of a session that changed something real** (migrated code,
   ran a gating check, resolved an open question), update section 0 before
