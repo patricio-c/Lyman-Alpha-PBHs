@@ -953,3 +953,105 @@ The M0 and M2 fits printed by the `--window all` run are meaningless --
 chi2/dof of 60.8 and 63.7, and f = -0.0113. Fitting a constant fraction across
 a ratio that runs from 0.76 to 2.17 has no content. That run is for the table
 only; `f = 0.249 +- 0.012` from the DESI window remains the number.
+
+## 2026-10-14 — the matter ratio was already on disk, and it says gravity did it
+
+Open item 7 was recorded as a pending Pylians run on the z = 3 snapshots.
+**It was not one.** Stage 09 deposits four fields and writes five auto
+spectra, so `figures/pk_z3_{CDM,FCT}.npz` already carry `P_dm`, `P_matter`
+and `P_baryon` next to `P_gas`, in the same 443 bins, from the same
+snapshots — and `P_matter` was validated against SWIFT's own
+`power_matter_*.txt` at the time, median ratio 1.0000 and 1.0013 over
+k = 0.2567 to 13.6379. The statement in the 2026-09-29 entry that those
+files "are gas" was wrong: they are seven-column files and only the first
+data column is gas. The measurement was on disk for a month; what was
+missing was the division. `stages/12_matter_vs_gas.py` is the division, and
+it needs no cluster.
+
+### The numbers
+
+Ratios FCT/CDM at z = 3, paired phases, same grid, same mass assignment.
+`r_dm` is PartType1 minus the converted IDs — 536,870,912 particles of the
+same mass in **both** runs, so it is gravity with nothing else in it.
+
+    k [Mpc^-1]   linear*   r_dm    r_matter   r_gas    r_baryon
+      0.152         -      0.9975   1.0002    0.8055    1.0151
+      1.012         -      1.0084   1.0108    0.8648    1.0236
+      2.725         -      1.0656   1.0657    1.0056    1.0665
+      6.792        8.1     1.2111   1.1946    1.1403    1.1091
+     13.638       48.6     1.4946   1.4262    1.2153    1.1295
+     19.950      129.5     1.7974   1.6556    1.3349    1.1459
+     27.331      291.8     2.1437   1.8908    1.5943    1.1507
+
+\* interpolated log-log through the three anchors logged on 2026-09-16
+(8 at 10 h/Mpc, 285 at 40, 1870 at 80), **not** computed from a transfer
+function. The real curve needs the production monofonIC transfer function,
+which is the same input A_P and A_b need (open item 3). Quote the anchors,
+not the curve.
+
+### The verdict on the 1870 → 2.1 attenuation
+
+In excess-above-unity terms, E = r − 1:
+
+    E_dm / E_linear    = 3.0e-2 at k = 6.8 ;  3.9e-3 at k = 27.3
+    E_gas / E_dm       = 0.67   at k = 6.8 ;  0.52   at k = 27.3
+
+**Non-linear gravity does 99.6% of the compression at k = 27 Mpc⁻¹, and
+the baryons do the remaining factor 1.9.** The threshold is not what kills
+the primordial signature; mode coupling is. This is the Murgia+2019 panel-b
+statement — non-linear evolution washes out the PBH signature in 3D matter —
+measured on this pair, at this redshift, for a model with 36 times their
+power ratio. The repository already reproduced that panel at z = 5 to 0.2
+percentage points; this is the same physics at an amplitude where it costs
+two and a half orders of magnitude.
+
+The honest version of the headline therefore changes. "A factor 1870 arrives
+as 2.1" is still true and is still the warning to anyone using a density
+threshold to constrain small-scale power — but the threshold is the junior
+partner in it. What the threshold does own is the **large-scale** half: at
+k = 0.15 Mpc⁻¹ the matter ratio is 1.0002 and the gas ratio is 0.8055. There
+is no gravitational excess there to attenuate. That deficit is manufactured
+by the scheme, and it is the part of the signal that is a statement about
+QLA rather than about the model.
+
+### What this does NOT separate
+
+Pressure smoothing from the density threshold. Both act only on the gas, in
+the same bins, and one snapshot pair cannot tell them apart. `r_baryon` looks
+like the lever and is not: the mixture is 86/14 gas-to-converted in CDM
+against 51/49 in FCT, so it compares two different mixtures of two different
+fields, and the converted particles have been collisionless and moving since
+conversion. Stage 09's caveat stands and the stage repeats it.
+
+The run that separates them is the threshold leg of the suite — Δ = 3000,
+both models, same phases — by differencing `r_gas` at two thresholds with
+everything else fixed. That makes the threshold leg a measurement rather
+than only a control.
+
+### Three things that could falsify this and what decides each
+
+1. **The high-k matter ratio is a CIC/aliasing artefact.** Stage 09's own
+   control stopped at 13.6379 Mpc⁻¹, which is 0.5 k_Nyq; everything above
+   that is unvalidated and the figure shades it. Decided by re-running
+   stage 09 with `--ngrid 1024` (or `--mas PCS`) and re-dividing. Note the
+   verdict does not depend on it: at k = 13.6, inside the validated band,
+   linear is ~49 and r_dm is 1.49, which is already 97% compression.
+2. **Shot noise.** Matter shot noise is 0.21% of P_matter at the Nyquist bin
+   and subtracting it moves r_matter in the fourth decimal. Gas is the one
+   to watch — FCT has 1.71× CDM's gas shot noise on 41% fewer tracers, 20.7%
+   of P_gas at the Nyquist bin — but subtracting it moves r_gas from 1.5943
+   to 1.5633, 2%. Both are in the stage output.
+3. **The linear anchors.** They are three logged numbers, interpolated. If
+   the real transfer-function curve is steeper or shallower the percentages
+   move. The verdict survives any plausible version of it: compression of
+   two and a half orders of magnitude does not become a threshold effect
+   because the linear ratio was 200 instead of 285.
+
+### Housekeeping
+
+`figures/matter_vs_gas_z3.{txt,npz,png,log}` written. The figure overplots
+the four measured ratios, the interpolated linear curve, and the measured
+P1D ratio points from the 2026-09-29 `--window all` run, which were never
+written to a file and are carried in the stage with their provenance. The
+M0/M2 fits from that run remain meaningless (χ²/dof 60.8, f = −0.011) and
+are deliberately not carried.

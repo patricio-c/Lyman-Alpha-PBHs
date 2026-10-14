@@ -1,0 +1,35 @@
+--------------------------------------------------------------------------
+command : stages/12_matter_vs_gas.py --ngas 115318346 67341600
+git     : 50812891fe5203e407bc75c5fdafa079024f720e-dirty
+host    : PatoNB    run at 2026-10-14T15:29:39-0300
+python  : 3.10.12   numpy 2.2.6
+cwd     : /tmp/claude-1000/-home-pato-Documentos-Claude-code-desk-files/8032cf0c-5575-4112-9b80-039d676650af/scratchpad/repo
+input   : figures/pk_z3_CDM.npz  [73f2b173ab274f55, 32064 bytes]
+input   : figures/pk_z3_FCT.npz  [06951d6e2ada1d5d, 32064 bytes]
+--------------------------------------------------------------------------
+==========================================================================
+Stage 12 - matter against gas, FCT/CDM    z = 3.0000
+==========================================================================
+box 58.73715   grid 512   k_fund 0.106971   k_Nyq 27.3846
+bins kept to k = 27.3846; SWIFT-validated band ends at 13.6923 (stage 09's own control: k = 0.2567 to 13.6379)
+matter shot noise  CDM 3.050725e-04  FCT 3.080928e-04   (0.21% of P_matter at k_cut)
+gas shot noise     CDM 1.757277e-03  FCT 3.009229e-03   (equal gas masses assumed; 20.7% of FCT P_gas at k_cut)
+
+linear anchors (h/Mpc -> Mpc^-1 at h = 0.6774): 6.774:8  27.096:285  54.192:1870
+INTERPOLATED between logged anchors, not computed from a transfer function. Quote the anchors, not the curve.
+
+--------------------------------------------------------------------------
+THE DECOMPOSITION, at the anchors
+--------------------------------------------------------------------------
+       k    linear     r_dm  r_matter    r_gas  E_dm/E_lin  E_gas/E_dm
+   0.152       nan   0.9975    1.0002   0.8055         nan         nan
+   1.012       nan   1.0084    1.0108   0.8648         nan         nan
+   2.725       nan   1.0656    1.0657   1.0056         nan       0.086
+   6.792       8.1   1.2111    1.1946   1.1403    2.99e-02       0.665
+  13.638      48.6   1.4946    1.4262   1.2153    1.04e-02       0.435
+  19.950     129.5   1.7974    1.6556   1.3349    6.21e-03       0.420
+  27.331     291.8   2.1437    1.8908   1.5943    3.93e-03       0.520
+
+E = ratio - 1, the excess above the no-signal value.  E_dm/E_lin is what non-linear gravity leaves of the primordial excess; E_gas/E_dm is what the baryons then leave of THAT.  Below the sign change at 2.725 Mpc^-1 the second column is meaningless: the gas excess is negative there, a deficit where gravity gives none, which is the drain and not an attenuation.
+
+figure -> figures/matter_vs_gas_z3.png

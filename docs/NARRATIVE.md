@@ -4,7 +4,7 @@
 no history — for that, and for the things that turned out to be wrong, see
 [`LOGBOOK.md`](LOGBOOK.md), which is append-only.
 
-Last rewritten: 2026-09-29.
+Last rewritten: 2026-10-14.
 
 ---
 
@@ -37,7 +37,11 @@ extra terms vanish at large scales — the break sits at k_t = 10 Mpc⁻¹ and t
 Poisson term contributes as k³ — **the two boxes are supposed to be identical
 where the forest is measured best.**
 
-They are, in matter. The matter power ratio at k = 0.14 Mpc⁻¹ is **1.0002**.
+They are, in matter, where the forest is measured. The matter power ratio at
+k = 0.15 Mpc⁻¹ is **1.0002**. It stays within a per cent of one out to
+k ≈ 1 Mpc⁻¹ and only then begins to climb, reaching 1.89 at k = 27 Mpc⁻¹ —
+which is a long way below the primordial 285 at the same scale, and that gap
+is the subject of the last section here.
 
 ## The result that needs explaining
 
@@ -178,8 +182,14 @@ above, so they can proceed in parallel with the suite.
    re-run with the line-of-sight output fixed. Every P1D number here comes from
    regenerated rays, and that substitution has not yet been checked against the
    thing it replaced.
-7. **The matter power ratio at z = 3**, which is now the one measurement
-   blocking the sharpest statement this work can make. See below.
+7. **Separating pressure smoothing from the density threshold.** The matter
+   ratio that used to stand here has been measured — it was already on disk —
+   and it answers the attenuation question below. What it does not do is
+   split the remaining factor 1.9 between baryon physics and the threshold,
+   because both act only on the gas and in the same bins. The threshold leg
+   of the suite, Δ = 3000 in both models on the same phases, differences
+   `r_gas` at two thresholds with everything else fixed, and is therefore a
+   measurement and not only a control.
 
 ## The sampling floor, measured and closed
 
@@ -203,7 +213,7 @@ bar. The correlated deletion that QLA actually performs would have to be twenty
 times worse than random to change the conclusion, and the evidence says about
 twice. The small-scale half of the result stands.
 
-## The rise with k survives, and the attenuation is the headline
+## The rise with k survives, and gravity — not the threshold — does the attenuation
 
 Outside the DESI window the thinning does produce power — a 2.6% excess at 6.9σ
 near 10 Mpc⁻¹, a hump rather than flat white noise, dead by 19 Mpc⁻¹ and
@@ -213,23 +223,46 @@ flux ratio rises with k, and so does the measured 3D gas ratio: 0.806 at
 0.15 Mpc⁻¹, crossing 1 at 2.7, and 1.594 at 27.3 and still rising where the
 band is cut at the grid Nyquist.
 
-Against the production linear matter ratio at matched wavenumber:
+The question that leaves open is where the primordial amplitude went. Stage 09
+had already measured every field needed to answer it — the dark matter, the
+total matter and the gas, in the same bins, from the same snapshots, with the
+matter field validated against SWIFT's own spectrum to 0.1%. Dividing them:
 
 ```
-k ~  6.8 Mpc⁻¹    linear    8     measured gas  1.14
-k ~ 27.2 Mpc⁻¹    linear  285     measured gas  1.59
-k ~ 54.5 Mpc⁻¹    linear 1870     measured P1D  ~2.16
+k [Mpc⁻¹]   linear*   dark matter   all matter   gas
+   6.8        8.1        1.211        1.195      1.140
+  13.6       48.6        1.495        1.426      1.215
+  27.3      291.8        2.144        1.891      1.594
 ```
 
-A factor 1870 arrives as 2.1. The qualitative signature survives — both curves
-rise with k, and that rise is now established as physical — but three orders of
-magnitude of amplitude do not. What is not yet separated is how much of that
-compression is non-linear gravity, how much is gas physics, and how much is the
-density threshold. That needs the matter power ratio at z = 3 in the same bins,
-which is open item 7 and a Pylians run on snapshots already on disk. The figure
-it produces — matter and gas ratios overplotted, the gap between them being the
-threshold — is the one that turns this into a statement about method rather
-than about one model.
+\* interpolated between three logged anchors, not computed from a transfer
+function; the real curve is the same input `b(k,z)` needs.
+
+The dark matter column is gravity and nothing else: the collisionless particle
+load is identical in both runs, same count and same mass, so no part of that
+ratio is the subgrid scheme. In excess-above-unity terms, **non-linear gravity
+leaves 0.4% of the primordial excess at k = 27 Mpc⁻¹, and the gas then leaves
+half of what gravity left.**
+
+So the headline sharpens rather than changes. A factor 1870 does arrive as
+about 2, and that remains the warning to anyone using a density threshold to
+constrain small-scale power — but the threshold is the junior partner in it.
+Mode coupling is what destroys the primordial signature, and it would destroy
+it in a simulation with no stars at all. This is Murgia+2019's own panel b,
+which this repository reproduced at z = 5 to 0.2 percentage points, now
+measured on a model with thirty-six times their power ratio.
+
+What the threshold does own is the other half of the signal. At
+k = 0.15 Mpc⁻¹ the matter ratio is 1.0002 and the gas ratio is 0.806: there is
+no gravitational excess there to attenuate, and the deficit is manufactured
+entirely by the removal of gas from the absorbing phase. The large-scale
+signature is a statement about the scheme; the small-scale one is a statement
+about the model, heavily compressed by gravity before the forest ever sees it.
+
+The figure that says this is `figures/matter_vs_gas_z3.png`: the four ratios
+overplotted against the linear curve and the measured flux points, with the
+gap between matter and gas being everything baryonic. The part of that gap
+which is the threshold, rather than pressure smoothing, is open item 7.
 
 ## Why the evolution is the point
 
