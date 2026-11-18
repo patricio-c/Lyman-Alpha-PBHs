@@ -22,11 +22,21 @@ BASE = os.environ.get("LYA_BASE", "/data/contrib/pad_140/pcolazo/lyman")
 
 # name -> path relative to BASE.  Add new ones here or pass --run-dir.
 REGISTRY = {
+    # new production pair, native LOS
     "cdm40":  "cdm-box-40-1024",
-    "fct40":  "2-fct-box-40-1024",
-    "cdm80":  "cdm-box-80-1024",
-    "fct80":  "fct-box-80-1024",
+    "fct40":  "fct-box-40-1024",
+    # the pair behind every number up to 2026-10-14
+    "cdm40_old":  "Old_sim/cdm-box-40-1024",
+    "fct40_old":  "Old_sim/2-fct-box-40-1024",
+    # low-resolution suite: a = 80 Mpc/h 1024^3, c = 40 Mpc/h 512^3
+    "lr_a_cdm":  "low_resolution/a/CDM",
+    "lr_a_fct":  "low_resolution/a/FCT",
+    "lr_delta_cdm":  "low_resolution/c/delta_dif/CDM",
+    "lr_delta_fct":  "low_resolution/c/delta_dif/FCT",
 }
+for _z, _t in (("6", "6"), ("7.5", "75"), ("9", "9")):
+    REGISTRY[f"lr_zreio{_t}_cdm"] = f"low_resolution/c/z_reio/{_z}/CDM"
+    REGISTRY[f"lr_zreio{_t}_fct"] = f"low_resolution/c/z_reio/{_z}/FCT"
 # the more_power batch: NB_1..NB_6 and poisson_1..poisson_6
 for _i in range(1, 7):
     REGISTRY[f"NB_{_i}"] = f"more_power/NB_{_i}"

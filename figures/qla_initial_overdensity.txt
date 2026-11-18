@@ -1,0 +1,38 @@
+--------------------------------------------------------------------------
+command : stages/13_initial_overdensity.py --cdm /data/contrib/pad_140/pcolazo/lyman/Old_sim/cdm-box-40-1024 --fct /data/contrib/pad_140/pcolazo/lyman/Old_sim/2-fct-box-40-1024 --out figures/qla_initial_overdensity
+git     : 8fe8d016db20c97f56e0d0e80a0fd4233e9b6fa5-dirty
+host    : cn078    run at 2026-10-28T08:01:24-0300
+python  : 3.11.15   numpy 2.4.5
+cwd     : /data/contrib/pad_140/pcolazo/Lyman-Alpha-PBHs
+input   : /data/contrib/pad_140/pcolazo/lyman/Old_sim/cdm-box-40-1024/cdm-40-m6-lyman_0000/cdm-40-m6-lyman_0000.hdf5  [676b25ec11f592b1, 670303 bytes]
+input   : /data/contrib/pad_140/pcolazo/lyman/Old_sim/cdm-box-40-1024/cdm-40-m6-lyman_0003/cdm-40-m6-lyman_0003.hdf5  [6b461855591271f1, 654670 bytes]
+input   : /data/contrib/pad_140/pcolazo/lyman/Old_sim/2-fct-box-40-1024/fct-40-m6-lyman_0000/fct-40-m6-lyman_0000.hdf5  [cf08d6e16bae7360, 652904 bytes]
+input   : /data/contrib/pad_140/pcolazo/lyman/Old_sim/2-fct-box-40-1024/fct-40-m6-lyman_0003/fct-40-m6-lyman_0003.hdf5  [03608c7fade105fa, 655236 bytes]
+--------------------------------------------------------------------------
+==========================================================================
+Stage 13 - initial overdensity of converted vs surviving gas
+==========================================================================
+Delta = rho_SPH / mean cosmic baryon density, read at the early
+snapshot. Medians are mass-weighted and exact over the particles.
+
+[CDM]
+  early  ['/data/contrib/pad_140/pcolazo/lyman/Old_sim/cdm-box-40-1024/cdm-40-m6-lyman_0000/cdm-40-m6-lyman_0000.hdf5']
+  late   ['/data/contrib/pad_140/pcolazo/lyman/Old_sim/cdm-box-40-1024/cdm-40-m6-lyman_0003/cdm-40-m6-lyman_0003.hdf5']   z = 3.0000
+  z_early = 198.0000,  IC gas particles 134,217,728
+  converted by z_early (header): 0.00%
+  converted by z_late  (header): 14.08%
+  converted by ID:               14.08%   (18,899,382 particles, 13.81% of the gas mass)
+  median Delta  converted 1.02801   surviving 1.00072   separation 0.02729
+
+[FCT]
+  early  ['/data/contrib/pad_140/pcolazo/lyman/Old_sim/2-fct-box-40-1024/fct-40-m6-lyman_0000/fct-40-m6-lyman_0000.hdf5']
+  late   ['/data/contrib/pad_140/pcolazo/lyman/Old_sim/2-fct-box-40-1024/fct-40-m6-lyman_0003/fct-40-m6-lyman_0003.hdf5']   z = 3.0000
+  z_early = 198.0000,  IC gas particles 134,217,728
+  converted by z_early (header): 0.00%
+  converted by z_late  (header): 49.83%
+  converted by ID:               49.83%   (66,876,128 particles, 48.65% of the gas mass)
+  median Delta  converted 1.06885   surviving 0.99646   separation 0.07239
+
+--------------------------------------------------------------------------
+separation FCT / CDM = 0.07239 / 0.02729 = 2.652
+histogram: 400 log bins over Delta 0.6748 - 2.7027, the full data range (no mass outside)

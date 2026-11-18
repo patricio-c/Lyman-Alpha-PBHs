@@ -40,14 +40,14 @@ the cluster is remote.
 
 # 0. Current status — read this first, every session
 
-**Last rewritten 2026-10-14.** This section is the punch list and it is
+**Last rewritten 2026-11-18.** This section is the punch list and it is
 rewritten whenever it stops being true. Everything from section 1 down is
 stable background. Read, in this order:
 
 1. this section,
 2. [`docs/NARRATIVE.md`](docs/NARRATIVE.md) — the current best telling,
    always rewritten, no history,
-3. the last three or four entries of [`docs/LOGBOOK.md`](docs/LOGBOOK.md) —
+3. the entries of [`docs/LOGBOOK.md`](docs/LOGBOOK.md) from 2026-10-14 on —
    append-only, including the things that turned out to be wrong.
 
 Section 0-bis below is the 2026-09-03/04 session, kept because its tables are
@@ -58,6 +58,9 @@ list is dead; do not work from it.**
 
 ## What is settled, with the number and where it lives
 
+All of these are on the **old pair** (`lyman/Old_sim/`, regenerated
+sightlines) unless stated otherwise.
+
 - **The cross-validation against Murgia+2019.** Their Figure 1 was recovered
   exactly from the arXiv vector source. Our 1D flux ratio sits within ~15% of
   their published curve across the fitted window and our non-linear matter
@@ -66,22 +69,31 @@ list is dead; do not work from it.**
 - **The extractor has an external check.** SpecWizard, run by Maria
   Marinichenko on the same sightlines, agrees to 3.5% pixel by pixel with a
   −0.5% median bias, and to 3% in P1D inside the DESI window. At z = 5 and in
-  diffuse gas only; z = 5 cannot reach the dense regime. 2026-09-16 entries.
+  diffuse gas only. 2026-09-16 entries.
 - **The z = 3 FCT/CDM flux deficit is real and is the gas.** ΔP1D = −12.6 ±
-  0.7 km/s at the largest measured scale, 18σ from zero; the measured 3D gas
+  0.7 km/s at the largest measured scale, 18σ from zero; flux ratio 0.7475 ±
+  0.011 there (k = 0.0014 s/km) and 0.7765 at k = 0.0028. The measured 3D gas
   difference propagated through the P1D kernel accounts for it with no free
-  additive constant (M5 = M3, χ² = 4.16/7). Stages 10 and 11.
-- **The sampling floor is measured and does not matter.** Compensated
-  deletion (`--thin-frac`, stage 01) gives a floor of 0.033 ± 0.009 km/s
-  against a small-scale term of 1.383 km/s: 2.4% of `a_exc`. `f = 0.414` was
-  predicted, not tuned. The 1/(1−f) mass rescale is an exact no-op under
-  Shepard and would have cancelled the calibration. 2026-09-29 entry.
-- **The attenuation, and who does it.** A linear matter ratio of 1870 arrives
-  at the forest as about 2.1. Non-linear gravity does 99.6% of that
-  compression on its own; everything baryonic does the remaining factor 1.9.
-  The density threshold owns the *large-scale* half of the signal instead,
-  where the matter ratio is 1.0002 and the gas ratio 0.8055. Stage 12,
-  `figures/matter_vs_gas_z3.png`, 2026-10-14 entry.
+  additive constant (M5 = M3, χ² = 4.16/7). Stages 10 and 11,
+  `figures/dp1d_40.txt`.
+- **The sampling floor is measured and does not matter.** 0.033 ± 0.009 km/s
+  against a small-scale term of 1.383 km/s: 2.4% of `a_exc`. 2026-09-29.
+- **The attenuation, and who does it.** At k ≈ 27 Mpc⁻¹ a linear excess of
+  285 becomes 2.14 in the dark matter and 1.59 in the gas: gravity does 99.6%
+  of the compression, the baryons the remaining factor 1.9. At k ≈ 54 Mpc⁻¹ a
+  linear 1870 reaches the flux as ~2.1. The threshold owns the large-scale
+  half instead (matter 1.0002, gas 0.8055 at k = 0.15 Mpc⁻¹). Stage 12,
+  2026-10-14.
+- **The gas QLA converts was marked in the initial conditions — 2.65×.**
+  Exact mass-weighted medians of Δ at z = 198, converted minus surviving:
+  CDM 0.02729, FCT 0.07239. Replaces the binned "2.4–2.7, lower bound".
+  Stage 13, 2026-10-27.
+- **QLA converts on density alone.** `physical_density > mean_density_Omega_b
+  * over_density`, `over_density = 1000`; no temperature cut, unlike the
+  `T < 10^5 K` of Viel et al. 2004 and GADGET-III. 2026-11-18.
+- **No IC-method confound in the resolution test.** Production and 1/8 legs
+  share `ParticleLoad = masked`, PANPHASIA phases and cosmology; only
+  `GridRes` and the model differ. 2026-10-15.
 
 ## The headline numbers, so they are not re-derived
 
@@ -91,107 +103,129 @@ list is dead; do not work from it.**
     gas ratio                     0.8055 (0.15)  ->  1.5943 (27.3 Mpc^-1)
     matter ratio                  1.0002 (0.15)  ->  1.8908 (27.3 Mpc^-1)
     dark matter ratio             0.9975 (0.15)  ->  2.1437 (27.3 Mpc^-1)
-    QLA conversion                14.08% CDM   49.83% FCT   (particle counts)
-    tau_eff raw, z = 3            0.42989 CDM   0.40426 FCT  (600 rays)
+    QLA conversion                14.08% CDM   49.83% FCT   (particle IDs)
+    IC marking, z = 198           0.02729 CDM  0.07239 FCT  -> 2.652   stage 13
+    tau_eff raw, z = 3            0.42989 CDM  0.40426 FCT  (old pair, 600 regenerated rays)
+                                  0.42458 CDM  (new pair, 6144 native rays)
+    flux ratio, k ~ 0.003 s/km    0.777 full res (old pair)
+                                  0.88-0.94 at 1/8 mass res (new legs, 768 rays, renormalised)
 
-## State of the runs, as reported by Pato on 2026-10-14
+## State of the runs, 2026-11-18
 
-**The new simulations are finished.** They are not analysed. What exists:
+**Every run has finished, to z = 1.8.** Checked by reading the redshift of
+every LOS file; all have z = 3. The queue is empty. Nothing below the
+768-sightline first look has been analysed.
 
-- Ten forest runs on Clementina (`snmgt01`), 4 nodes each, from the four sets
-  of initial conditions specified in
-  [`docs/RUNS_2026-09-08_convergence_and_reionization.md`](docs/RUNS_2026-09-08_convergence_and_reionization.md):
-  a large-box leg, a low-resolution leg at matched particle mass, three
-  reionization redshifts in both models, and a threshold variation
-  (Δ = 3000) in both models.
-  **The deciding pair is jobs 1534768 / 1534769** — leg (c) base, z_reio 7.5,
-  Δ = 1000. Jobs 1534772 / 1534773 are leg (a), released after its initial
-  conditions were regenerated whole (the first pair were truncated in gas —
-  see the 2026-09-16 fifth entry; check `NumPart_Total` against the dataset
-  lengths and that gas masses are non-zero before trusting them).
-- Twelve `lyman/more_power` runs (six `sw_NB_*`, six `sw_poisson`), which
-  were crossing z ≈ 3.4 when last looked at.
-- Every run in the suite carries the z = 5 → 2 output list, so the
-  single-redshift problem is fixable from them.
+    old pair, every number up to 2026-10-14   lyman/Old_sim/{cdm-box-40-1024, 2-fct-box-40-1024}   cdm40_old / fct40_old
+    new pair, 1024^3, native LOS (38 outputs) lyman/{cdm-box-40-1024, fct-box-40-1024}              cdm40 / fct40
+    1/8 mass resolution, 512^3, same box      lyman/low_resolution/c/z_reio/{6,7.5,9}/{CDM,FCT}     lr_zreio75_cdm, ...
+    threshold Delta = 3000, 512^3 ONLY        lyman/low_resolution/c/delta_dif/{CDM,FCT}            lr_delta_cdm, ...
+    80 Mpc/h, 1024^3 (particle mass of c)     lyman/low_resolution/a/{CDM,FCT}                      lr_a_cdm, ...
+    PBH amplitude grid (sc load, CAMB TFs)    lyman/more_power/{NB_1..6, poisson_1..6}              NB_i, poisson_i
 
-**Ask Pato for the current queue state before planning anything**, and note
-that the working tree on Clementina was `-dirty` over commit `50812891` on
-2026-10-14: there are local changes there that were never committed. Reconcile
-before trusting a path or a script on the cluster. Claude cannot log in to
-Clementina — it is password-only — so every cluster command goes to Pato to
-run and paste back.
+The base 1/8 leg (z_reio 7.5, Δ = 1000) is `c/z_reio/7.5`. Registry names are
+in `common/runs.py` (changed 2026-11-18, see Traps).
 
-## The next three things, each with the command that decides it
+**Cluster access.** Claude can now run commands on Clementina over SSH with
+key authentication when Pato's VPN is up. Test with a `BatchMode=yes`
+`hostname` before assuming either way. Compute goes through `sbatch`, never
+the login node: every script in `scripts/` is an sbatch file meant to be
+launched from the repository root.
 
-1. **Does the drain survive at one eighth the mass resolution?** The question
-   the whole suite was built for, and the cheapest run answers it. Compare the
-   conversion fraction and the gas ratio between legs (b) and (c) at matched
-   particle mass. If the drain amplitude is stable the large-scale signature
-   is a prediction of the model; if it moves, it is a resolution artefact and
-   becomes an upper bound. Both outcomes are results.
+**The Clementina working tree** is at `8fe8d01` with untracked outputs only
+and no modified tracked file. Fast-forward it to `main` before running
+anything: stage 13, the scripts and the registry fix live there.
 
-        python stages/06_gas_census.py --snap <leg-b z=3 snapshot> --ics <...>
-        python stages/09_gas_power.py --snap <...> --ics <...> --label LOWRES \
-            --ngrid 512 --swift-pk <...>/power_matter_*.txt --out figures/pk_z3_lowres
+## The next things, each with the command that decides it
 
-2. **Split pressure smoothing from the density threshold.** Stage 12 measured
-   that everything baryonic costs a factor 1.9 at k = 27 Mpc⁻¹ but cannot say
-   how much of it is the threshold. The Δ = 3000 leg does, by differencing
-   `r_gas` at two thresholds with everything else fixed. This promotes that
-   leg from control to measurement.
+1. **The new pair at z = 3.** The first FCT/CDM with native sightlines, and
+   open item 6 against the old pair's 0.7475 / 18σ. Same random 1500
+   sightlines in both models, paired if stage 02 says so, normalised to the
+   CDM's own raw τ_eff:
 
-        python stages/09_gas_power.py --snap <Δ=3000 FCT z=3> --ics <...> \
-            --label FCT_T3000 --out figures/pk_z3_FCT_T3000
-        python stages/12_matter_vs_gas.py --cdm figures/pk_z3_CDM.npz \
-            --fct figures/pk_z3_FCT_T3000.npz --out figures/matter_vs_gas_T3000
+        Z=3.0 sbatch scripts/run_new_pair_ratio.sh
+        Z=3.0 SEED=2 sbatch scripts/run_new_pair_ratio.sh     # sample variance
+        Z=3.0 N=6144 sbatch scripts/run_new_pair_ratio.sh     # all of them, ~5 h
 
-3. **A second redshift.** The entire method is about redshift evolution and
-   there is still a single point, at z = 3. Every new run carries the output
-   list; extract and run stages 10 and 11 at z = 2.2 and z = 4 on the same
-   pair, with the reference run's own raw `tau_eff` as the target at each
-   redshift.
+2. **Decide the resolution test with the gas, not the flux.** The flux first
+   look says the large-scale deficit is about half as deep at 1/8 the mass
+   resolution (2026-10-18). What decides it is the conversion fraction and
+   r_gas at matched particle mass. Stage 13 gives the conversion fraction and
+   the IC marking in one pass:
+
+        python stages/13_initial_overdensity.py \
+            --cdm /data/contrib/pad_140/pcolazo/lyman/low_resolution/c/z_reio/7.5/CDM \
+            --fct /data/contrib/pad_140/pcolazo/lyman/low_resolution/c/z_reio/7.5/FCT \
+            --out figures/qla_initial_overdensity_lr
+
+   (it looks for the snapshots nearest z = 198 and z = 3; if the 1/8 legs
+   have no z = 198 output, pass `--z-early` with their first one)
+
+   then stage 09 on the same pair at z = 3 for r_gas, and the flux with random
+   sightlines instead of the first 768:
+
+        CDM_DIR=/data/contrib/pad_140/pcolazo/lyman/low_resolution/c/z_reio/7.5/CDM \
+        FCT_DIR=/data/contrib/pad_140/pcolazo/lyman/low_resolution/c/z_reio/7.5/FCT \
+        LABEL=lr75 Z=3.0 sbatch scripts/run_new_pair_ratio.sh
+
+   Compare with the new pair from item 1, not the old one.
+
+3. **A second redshift.** Every run carries z = 5 → 1.8. Same script on the
+   new pair with `Z=2.2` and `Z=4.0`.
+
+4. **The `more_power` grid** is blocked on its CDM anchor (Pending).
 
 ## Traps that have bitten more than once
 
-- **`units.tau_eff_turner24` is not the house normalisation.** Stage 10
-  defaults its common target to it, which at z = 3 moves `c` by 27% in
-  silence. Every production number uses *the reference run's own raw
-  `tau_eff`*. Always pass `--tau-eff` explicitly. Not fixed; see the pending
-  list.
-- **`figures/pk_z3_*.txt` are not gas files.** They have seven data columns.
-  The 2026-09-29 entry got this wrong and it cost a month on open item 7.
-- **Stage 10 with `--window all` prints meaningless M0/M2 fits** (χ²/dof 60.8,
-  f = −0.011). That run is for the ratio table only. `f = 0.249 ± 0.012` from
-  the DESI window is the number.
-- **Do not compare runs with SWIFT's `cdm-cdm` spectrum.** In a QLA run
-  `PartType1` is dark matter plus the converted baryons, so it is a different
-  physical quantity in each run. Only `matter-matter` divides cleanly.
+- **`--norm none` ratios carry the mean-flux difference.** At 1/8 resolution
+  FCT has 27% more τ_eff than CDM and the raw ratio read as the drain
+  reversing; renormalised, it is a smaller deficit. Never read an FCT/CDM
+  ratio before renormalising to the reference run's own raw τ_eff.
+- **`units.tau_eff_turner24` is not the house normalisation.** Stage 10 and
+  stage 04 default to it, which at z = 3 moves results by ~27%. Always pass
+  `--tau-eff` explicitly.
+- **`--max-los N` takes the first N sightlines in file order**, which SWIFT
+  writes grouped. For a sample use `scripts/make_los_subset.py --random` with
+  the same seed in both models (`run_new_pair_ratio.sh` does).
+- **Registry names changed on 2026-11-18.** `cdm40`/`fct40` are now the new
+  pair; the old pair, behind every number up to 2026-10-14, is
+  `cdm40_old`/`fct40_old`. `fct40` used to point at `2-fct-box-40-1024`, which
+  stopped existing at the top level when it moved to `Old_sim/`.
 - **Paths: `lyman/cdm-box-40-1024` in any entry before 2026-09-16 means what
-  is now under `lyman/Old_sim/`.** The directories were renamed.
-- **Every P1D number in this repository comes from regenerated sightlines**
-  (`relos.py --uniform 512 --seed 12345`), because SWIFT's own LOS output for
-  the production pair was truncated. The new suite has no `*_range_*` lines,
-  so its LOS output is usable and that substitution can finally be checked.
+  is now under `lyman/Old_sim/`.**
+- **`IC_lyman_alpha/6_10^6/B40/IC_N1024B040_200.hdf5` is the FCT IC**, with no
+  suffix. The CDM one is `IC_lyman_alpha/CDM/6_10^6/B40/..._cdm.hdf5`.
+- **Do not pair 285 with ~2.** 285 is the linear excess at k ≈ 27 Mpc⁻¹, where
+  the gas receives 1.6; ~2 is the flux at k ≈ 54 Mpc⁻¹, where the linear
+  excess is 1870.
+- **The threshold leg is 512³ only.** At that resolution the threshold barely
+  bites (Δ = 3000 vs 1000: τ_eff equal to 0.2%), so it cannot split pressure
+  smoothing from the threshold at production resolution (open item 7).
+- **`figures/pk_z3_*.txt` are not gas files.** Seven data columns.
+- **Stage 10 with `--window all` prints meaningless M0/M2 fits.**
+- **Do not compare runs with SWIFT's `cdm-cdm` spectrum.** Only
+  `matter-matter` divides cleanly.
+- **Snapshots in the new runs are subdirectories** (`<base>_NNNN/`) and are not
+  named `*snap*`, so `common.runs.resolve_snapshot` does not find them. Stage
+  13 searches them itself; for stages 06/07/09 pass the files explicitly.
 
-## Pending, none of it blocking the three above
+## Pending, none of it blocking the items above
 
+- **The `more_power` CDM anchor (ask Pato).** The grid uses `ParticleLoad = sc`
+  and `tf_z/grilla12/*_camb.csv`; CDM b40 is `masked` with
+  `tf_200_v_cdm_CLASS.csv`. Pato says the `_CLASS`/`_camb` names may be naming
+  only. Ask whether `grilla12` holds a pure-CDM CAMB TF for a clean `sc`
+  anchor run, and whether the names reflect different Boltzmann codes.
+- A 1024³ Δ = 3000 pair, if open item 7 is to be done at production
+  resolution.
 - `common/units.py` has `Omega_m = 0.3053`; the runs declare `0.3046109`.
 - The `$VREL` bug in `make_ics.sh`.
-- Stage 10's `tau_eff` default, above.
-- A CDM run at the `more_power` grid's own `sc` particle load, to anchor the
-  twelve-model relation on a measured zero instead of the `poisson_6` proxy.
 - The z = 3 delivery for Maria: four files into `external/specwizard/`, plus
-  `tests/t13_specwizard.py`. The z = 5 comparison should also be re-run with
-  H read from the SWIFT header, which matters for P1D above the window.
-- `b(k,z)`: `tests/t11_bias_bk.py` is written and needs `A_P`, `A_b` and
-  `k_max`. `A_P` and `A_b` are calculable from the production transfer
-  function (`IC_lyman_alpha/6_10^6/B40`), not fitted. That same transfer
-  function replaces the interpolated linear curve in stage 12.
-- The common DESI `(k1, k2)` window across redshift bins, before any
-  integrated observable is quoted. `common.units.common_window` currently
-  uses an analytic resolution approximation and needs the real arrays.
-- The 3.5× converted-mass ratio against the observed stellar mass density,
-  normalised so that CDM matches observations.
+  `tests/t13_specwizard.py`.
+- `b(k,z)`: `tests/t11_bias_bk.py` needs `A_P`, `A_b`, `k_max`, calculable
+  from the production transfer function (`IC_lyman_alpha/6_10^6/B40`).
+- The common DESI `(k1, k2)` window across redshift bins.
+- The 3.5× converted-mass ratio against the observed stellar mass density.
 
 ---
 

@@ -1,0 +1,26 @@
+--------------------------------------------------------------------------
+command : stages/04_p1d.py cache/cache_a_cdm_n768.npz cache/cache_a_fct_n768.npz --labels a_CDM a_FCT --norm taueff --tau-eff 0.45896 --ylim-ratio 0.5 2.5 --out figures/p1d_z3_a_n768_te
+git     : 8fe8d016db20c97f56e0d0e80a0fd4233e9b6fa5-dirty
+host    : snmgt01    run at 2026-10-18T15:46:52-0300
+python  : 3.11.15   numpy 2.4.5
+cwd     : /data/contrib/pad_140/pcolazo/Lyman-Alpha-PBHs
+input   : cache/cache_a_cdm_n768.npz  [7170faf9566c914b, 5772532 bytes]
+input   : cache/cache_a_fct_n768.npz  [79f24e0f3e7a31f9, 5810646 bytes]
+--------------------------------------------------------------------------
+======================================================================
+Stage 04 - P1D    norm = taueff
+======================================================================
+reference run: a_CDM    z = 3.0000   dv = 4.39249 km/s
+common tau_eff target = 0.45896
+
+run              nlos       z  tau_eff raw         A  tau_eff out
+a_CDM             768   3.000      0.45896   0.99998      0.45896
+a_FCT             768   3.000      0.58599   0.62992      0.45896
+
+  k [s/km]      a_FCT
+    0.0030     0.9376
+    0.0050     0.9826
+    0.0100     1.1090
+    0.0200     1.2327
+    0.0300     1.3949
+    0.0600     1.5107

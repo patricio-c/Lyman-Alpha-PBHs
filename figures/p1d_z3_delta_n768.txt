@@ -1,0 +1,25 @@
+--------------------------------------------------------------------------
+command : stages/04_p1d.py cache/cache_delta_cdm_n768.npz cache/cache_delta_fct_n768.npz --labels delta_CDM delta_FCT --norm none --ylim-ratio 0.5 2.0 --out figures/p1d_z3_delta_n768
+git     : 8fe8d016db20c97f56e0d0e80a0fd4233e9b6fa5-dirty
+host    : cn029    run at 2026-10-17T17:32:31-0300
+python  : 3.11.15   numpy 2.4.5
+cwd     : /data/contrib/pad_140/pcolazo/Lyman-Alpha-PBHs
+input   : cache/cache_delta_cdm_n768.npz  [03f157bb1cf8e409, 5767571 bytes]
+input   : cache/cache_delta_fct_n768.npz  [96f929ced46c47dd, 5809527 bytes]
+--------------------------------------------------------------------------
+======================================================================
+Stage 04 - P1D    norm = none
+======================================================================
+reference run: delta_CDM    z = 3.0000   dv = 2.19625 km/s
+
+run              nlos       z  tau_eff raw         A  tau_eff out
+delta_CDM         768   3.000      0.46760   1.00000      0.46760
+delta_FCT         768   3.000      0.59379   1.00000      0.59379
+
+  k [s/km]  delta_FCT
+    0.0030     1.2902
+    0.0050     1.4245
+    0.0100     1.4555
+    0.0200     1.7052
+    0.0300     1.8014
+    0.0600     2.1465

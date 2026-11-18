@@ -1,0 +1,25 @@
+--------------------------------------------------------------------------
+command : stages/04_p1d.py cache/cache_zreio6_cdm_n768.npz cache/cache_zreio6_fct_n768.npz --labels zreio6_CDM zreio6_FCT --norm none --ylim-ratio 0.5 2.0 --out figures/p1d_z3_zreio6_n768
+git     : 8fe8d016db20c97f56e0d0e80a0fd4233e9b6fa5-dirty
+host    : cn029    run at 2026-10-17T17:32:32-0300
+python  : 3.11.15   numpy 2.4.5
+cwd     : /data/contrib/pad_140/pcolazo/Lyman-Alpha-PBHs
+input   : cache/cache_zreio6_cdm_n768.npz  [70d6a16956f65244, 5768135 bytes]
+input   : cache/cache_zreio6_fct_n768.npz  [f34afa670539e2eb, 5808348 bytes]
+--------------------------------------------------------------------------
+======================================================================
+Stage 04 - P1D    norm = none
+======================================================================
+reference run: zreio6_CDM    z = 3.0000   dv = 2.19625 km/s
+
+run              nlos       z  tau_eff raw         A  tau_eff out
+zreio6_CDM        768   3.000      0.45596   1.00000      0.45596
+zreio6_FCT        768   3.000      0.58556   1.00000      0.58556
+
+  k [s/km] zreio6_FCT
+    0.0030     1.2877
+    0.0050     1.3900
+    0.0100     1.4931
+    0.0200     1.7286
+    0.0300     1.8854
+    0.0600     2.1755

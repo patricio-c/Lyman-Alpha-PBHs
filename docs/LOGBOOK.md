@@ -1087,3 +1087,136 @@ their line-of-sight output should be whole. If it is, the substitution that
 every P1D number in this repository rests on — regenerated rays in place of
 SWIFT's own — can finally be checked against the thing it replaced, which is
 narrative open item 6.
+
+## 2026-10-15 — masked vs sc: checked, not a confound
+
+A verbal note had it that the box-40 production pair was generated with
+`ParticleLoad = masked` and the low-resolution legs with plain `sc`. That
+would have put a second variable into the 1/8-mass-resolution test, on top of
+`GridRes`.
+
+Checked against the `conf.conf` that generated each IC:
+`IC_lyman_alpha/CDM/6_10^6/B40/`, `IC_lyman_alpha/6_10^6/B40/`,
+`IC_lyman_alpha/low_resolution/{CDM,FCT}/c/`. All four: `ParticleLoad =
+masked`, `ParticleMaskType = 2`, the same PANPHASIA descriptor, the same
+cosmology, and `PanphasiaMinRootResolution = 1024` — which is what makes the
+512³ phases the 1024³ phases. The only differences are `GridRes` (1024 vs
+512, the variable under test) and `transfer_file` (the model). **No
+confound.**
+
+Naming trap found on the way: `IC_lyman_alpha/6_10^6/B40/conf.conf` is the
+**FCT** config (`transfer_file = tf_200_v_fct_CLASS.csv`) but writes
+`IC_N1024B040_200.hdf5`, with no suffix. The CDM sibling is
+`IC_lyman_alpha/CDM/6_10^6/B40/`, which writes `..._cdm.hdf5`.
+
+The `more_power` grid is set up differently: `ParticleLoad = sc` and transfer
+functions from `tf_z/grilla12/*_camb.csv`. That matters for its CDM anchor
+(next entry), not for the resolution test.
+
+## 2026-10-18 — z = 3 across the whole suite, a first look with 768 sightlines
+
+`scripts/run_extract_z3.sh`: stage 01 with `--max-los 768` on 22 runs on one
+node, then stage 04 per group. `--max-los` takes the first 768 sightlines in
+file order, not a random sample. They are the same 768 in both models of a
+pair, so the ratios are fair, but noisier and less representative than the
+number suggests. NB_2, NB_3 and NB_4 had not reached z = 3 at the time; all
+have now.
+
+**Native LOS, a first number.** The new CDM b40 (`lyman/cdm-box-40-1024`,
+whole LOS output), all 6144 native sightlines: raw τ_eff = 0.42458, against
+0.42989 from 600 regenerated rays of the old pair, −1.2%. Not yet a
+validation of open item 6: different run, different sightlines, no FCT side.
+
+**`more_power` against CDM b40: not interpretable yet.** `--norm none`, at
+k = 0.003 s/km the ratios run from 0.72 (NB_1) to 0.86, and poisson_1 … 6 sit
+flat at 0.80–0.84. Their raw τ_eff is 0.357–0.396 against 0.425. Two reasons
+not to read it: the normalisation, and the reference — the grid runs `sc`
+particle load and CAMB transfer functions, while CDM b40 is `masked` with its
+own TF file. A ratio that hardly moves across six Poisson amplitudes looks like
+a baseline offset, not physics. It needs a CDM anchor on the grid's own setup.
+
+**Low resolution, and a false alarm.** Raw (`--norm none`), every
+low-resolution FCT absorbs *more* than its CDM — τ_eff 0.584–0.594 against
+0.456–0.468 — and FCT/CDM is above 1 at every k. That read as the drain
+reversing at 1/8 the mass resolution. It is the mean flux. Renormalised to each
+leg's own CDM raw τ_eff (`figures/p1d_z3_*_n768_te.txt`):
+
+    k [s/km]      a      delta   zreio6  zreio75  zreio9  | old pair, full res (dp1d_40)
+    0.0030      0.938   0.930   0.912   0.897    0.877    | 0.777 (k = 0.0028)
+    0.0050      0.983   1.040   0.995   0.938    1.012    |
+    0.0100      1.109   1.060   1.082   1.093    1.139    | 0.929 (0.0105)
+    0.0300      1.395   1.343   1.380   1.384    1.354    | 1.134 (0.0272)
+    0.0600      1.511   1.583   1.571   1.587    1.574    | 1.200 (0.0510)
+
+The large-scale deficit survives the normalisation but is about half as deep
+at 1/8 the mass resolution — 6–12% against 22% — the ratio crosses 1 between
+0.005 and 0.01 s/km instead of at 0.0143, and the small-scale excess is larger.
+Δ = 3000 against Δ = 1000 on the same low-resolution pair: τ_eff equal to 0.2%
+in both models, ratio 0.93 against 0.90, inside the noise. The three z_reio
+legs cannot be told apart at this noise.
+
+Reading, preliminary: **the drain amplitude moves with resolution**, which is
+branch B of the narrative — an upper bound, with the small-scale excess as the
+signal. Not a verdict, for three reasons. The full-resolution column is the old
+pair with regenerated rays and 1536 sightlines, while the low-resolution columns
+are native rays and the first 768. The deciding quantities are the conversion
+fraction and r_gas at matched particle mass (stages 13/09), not run yet on the
+1/8 legs. And the full-resolution side should be the new pair.
+
+**The threshold leg cannot do what it was promoted to do.** `c/delta_dif` is a
+512³ leg. At that resolution the threshold barely bites, so Δ = 3000 against
+1000 says little about the threshold at production resolution, which is where
+the factor 1.9 of open item 7 was measured. Splitting pressure smoothing from
+the threshold at 1024³ needs a 1024³ Δ = 3000 pair, which does not exist.
+
+## 2026-10-27 — stage 13: the 2.4 was 2.65
+
+`stages/13_initial_overdensity.py` replaces stage 07's binned medians with
+exact mass-weighted medians over the particles — sort Δ, accumulate the mass,
+cut at half — so the Δ = 1.4 clipping that made 2.4 a lower bound is gone. It
+imports the Δ definition, the ID matching and the units from stage 07, so the
+quantity is the same one. Old pair, Δ at z = 198, conversion by z = 3:
+
+                   converted   surviving   separation
+    CDM              1.02801     1.00072     0.02729
+    FCT              1.06885     0.99646     0.07239
+    separation FCT / CDM = 2.652
+
+Converted by ID 14.08% / 49.83% (by mass 13.81% / 48.65%); no non-positive gas
+masses. Histogram over the whole data range, Δ = 0.675–2.703, nothing outside
+it. **Quote 2.65, not 2.4–2.7.** Outputs in
+`figures/qla_initial_overdensity.{png,pdf,json,txt}`.
+
+## 2026-11-18 — handoff: everything has run; the QLA criterion confirmed
+
+No new measurement. Recorded because the next session starts after a month.
+
+**All 24 runs are complete to z = 1.8**, checked by reading the redshift of
+every LOS file: the new production pair (`lyman/cdm-box-40-1024`,
+`lyman/fct-box-40-1024`, 38 LOS outputs each), the ten low-resolution runs and
+the twelve `more_power` runs (17 each). The queue is empty.
+
+**QLA converts on density alone.** In the SWIFT build used,
+`src/star_formation/QLA/star_formation.h` converts when `physical_density >
+mean_density_Omega_b * over_density`, with `QLAStarFormation:over_density:
+1000` in the `used_parameters.yml` of both pairs. There is no temperature
+condition: the `T < 10^5 K` cut of Viel et al. (2004) and of GADGET-III is not
+in our runs. The entropy floor is `over_density_threshold: 10`,
+`temperature_norm_K: 8000`. Any description of our scheme with a temperature
+cut is wrong.
+
+**Registry.** `common/runs.py` had `fct40 -> 2-fct-box-40-1024`, which stopped
+existing at the top level when the old pair moved to `Old_sim/`, and
+`cdm80`/`fct80` pointing at directories deleted since. Now `cdm40`/`fct40` are
+the new pair, `cdm40_old`/`fct40_old` the old one, and the low-resolution legs
+have names. Every number up to 2026-10-14 is the old pair.
+
+**The Clementina working tree**, reported `-dirty` over `50812891`, is at
+`8fe8d01` with no modified tracked file — the dirt is untracked outputs — so
+it can fast-forward to `main`.
+
+Scripts committed, all sbatch files launched from the repository root:
+`scripts/run_extract_z3.sh` (the 768-sightline survey; on the cluster it ran
+as `scripts/run_test_p1d_all.sh`), `scripts/run_initial_overdensity.sh`
+(stage 13), and `scripts/run_new_pair_ratio.sh` (FCT/CDM with N random
+sightlines, the same ones in both models; written, never launched).

@@ -1,0 +1,41 @@
+--------------------------------------------------------------------------
+command : stages/04_p1d.py cache/cache_cdm40.npz cache/cache_NB_1_n768.npz cache/cache_NB_5_n768.npz cache/cache_NB_6_n768.npz cache/cache_poisson_1_n768.npz cache/cache_poisson_2_n768.npz cache/cache_poisson_3_n768.npz cache/cache_poisson_4_n768.npz cache/cache_poisson_5_n768.npz cache/cache_poisson_6_n768.npz --labels CDM_b40 NB_1 NB_5 NB_6 poisson_1 poisson_2 poisson_3 poisson_4 poisson_5 poisson_6 --norm none --ylim-ratio 0.5 2.0 --out figures/p1d_z3_more_power_n768
+git     : 8fe8d016db20c97f56e0d0e80a0fd4233e9b6fa5-dirty
+host    : cn029    run at 2026-10-17T17:32:26-0300
+python  : 3.11.15   numpy 2.4.5
+cwd     : /data/contrib/pad_140/pcolazo/Lyman-Alpha-PBHs
+input   : cache/cache_cdm40.npz  [85d297ce70d0c99d, 46237772 bytes]
+input   : cache/cache_NB_1_n768.npz  [30f31b65cd776916, 5805546 bytes]
+input   : cache/cache_NB_5_n768.npz  [e2d67f2a53a735d7, 5790237 bytes]
+input   : cache/cache_NB_6_n768.npz  [f43a0c601ba19ddb, 5789556 bytes]
+input   : cache/cache_poisson_1_n768.npz  [f9d4d62b84088fec, 5789775 bytes]
+input   : cache/cache_poisson_2_n768.npz  [88c01a4ffc5d90b2, 5788025 bytes]
+input   : cache/cache_poisson_3_n768.npz  [b3bba7bd8806e4b6, 5789654 bytes]
+input   : cache/cache_poisson_4_n768.npz  [d2f7347a5ca99edd, 5789407 bytes]
+input   : cache/cache_poisson_5_n768.npz  [e7406ea003db9073, 5789888 bytes]
+input   : cache/cache_poisson_6_n768.npz  [0fb66a9dd65c201c, 5789023 bytes]
+--------------------------------------------------------------------------
+======================================================================
+Stage 04 - P1D    norm = none
+======================================================================
+reference run: CDM_b40    z = 3.0000   dv = 2.19625 km/s
+
+run              nlos       z  tau_eff raw         A  tau_eff out
+CDM_b40          6144   3.000      0.42458   1.00000      0.42458
+NB_1              768   3.000      0.35672   1.00000      0.35672
+NB_5              768   3.000      0.39172   1.00000      0.39172
+NB_6              768   3.000      0.39573   1.00000      0.39573
+poisson_1         768   3.000      0.39031   1.00000      0.39031
+poisson_2         768   3.000      0.39224   1.00000      0.39224
+poisson_3         768   3.000      0.39043   1.00000      0.39043
+poisson_4         768   3.000      0.38600   1.00000      0.38600
+poisson_5         768   3.000      0.38558   1.00000      0.38558
+poisson_6         768   3.000      0.38142   1.00000      0.38142
+
+  k [s/km]       NB_1       NB_5       NB_6  poisson_1  poisson_2  poisson_3  poisson_4  poisson_5  poisson_6
+    0.0030     0.7241     0.8562     0.8014     0.8021     0.8117     0.8186     0.8299     0.8408     0.8159
+    0.0050     0.7457     0.8161     0.8129     0.7956     0.8090     0.8094     0.8385     0.8111     0.8513
+    0.0100     0.7954     0.8450     0.8730     0.8555     0.8708     0.8876     0.8719     0.8533     0.8315
+    0.0200     0.8965     0.9182     0.9076     0.9114     0.9132     0.9228     0.8613     0.9019     0.8766
+    0.0300     0.9351     0.9501     0.9467     0.9348     0.9410     0.9349     0.9194     0.9201     0.9164
+    0.0600     1.0287     1.0047     0.9831     1.0135     0.9970     1.0013     0.9926     0.9876     0.9808

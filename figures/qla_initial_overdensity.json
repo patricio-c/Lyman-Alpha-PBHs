@@ -1,0 +1,52 @@
+{
+  "stage": "13_initial_overdensity",
+  "delta_definition": "rho_SPH / (Omega_b rho_crit0 h^2 (1+z)^3) at the early snapshot",
+  "statistic": "mass-weighted median, exact over particles (no binning)",
+  "runs": {
+    "CDM": {
+      "early_snapshot": [
+        "/data/contrib/pad_140/pcolazo/lyman/Old_sim/cdm-box-40-1024/cdm-40-m6-lyman_0000/cdm-40-m6-lyman_0000.hdf5"
+      ],
+      "late_snapshot": [
+        "/data/contrib/pad_140/pcolazo/lyman/Old_sim/cdm-box-40-1024/cdm-40-m6-lyman_0003/cdm-40-m6-lyman_0003.hdf5"
+      ],
+      "z_early": 198.0,
+      "z_late": 2.999999999999999,
+      "n_ic_gas": 134217728,
+      "n_converted": 18899382,
+      "converted_fraction": 0.14081136882305145,
+      "converted_mass_fraction": 0.13813459479481088,
+      "converted_fraction_header": 0.14081136882305145,
+      "median_delta_converted": 1.028010606765747,
+      "median_delta_surviving": 1.0007184743881226,
+      "separation": 0.02729213237762451,
+      "nonpositive_masses": 0
+    },
+    "FCT": {
+      "early_snapshot": [
+        "/data/contrib/pad_140/pcolazo/lyman/Old_sim/2-fct-box-40-1024/fct-40-m6-lyman_0000/fct-40-m6-lyman_0000.hdf5"
+      ],
+      "late_snapshot": [
+        "/data/contrib/pad_140/pcolazo/lyman/Old_sim/2-fct-box-40-1024/fct-40-m6-lyman_0003/fct-40-m6-lyman_0003.hdf5"
+      ],
+      "z_early": 198.0,
+      "z_late": 2.999999999999999,
+      "n_ic_gas": 134217728,
+      "n_converted": 66876128,
+      "converted_fraction": 0.49826598167419434,
+      "converted_mass_fraction": 0.4864872463604932,
+      "converted_fraction_header": 0.49826598167419434,
+      "median_delta_converted": 1.0688451528549194,
+      "median_delta_surviving": 0.9964565634727478,
+      "separation": 0.07238858938217163,
+      "nonpositive_masses": 0
+    }
+  },
+  "ratio_separation_fct_over_cdm": 2.6523610680387693,
+  "histogram": {
+    "nbins": 400,
+    "delta_lo": 0.6747705874443054,
+    "delta_hi": 2.7027169923782344,
+    "mass_outside_range": 0.0
+  }
+}
