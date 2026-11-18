@@ -104,6 +104,9 @@ sightlines) unless stated otherwise.
 - **sigma at 10⁸ M☉/h orders the conversion** across the twelve grid runs at
   z = 3 with no rank inversion; the P1D-kernel integral of the extra power
   does not. Same entry.
+- **`DoBaryonVrel = yes` with `CAMB_file` TFs is deliberate.** Every IC of
+  the suite (production, legs, grid, anchor) uses it; Pato confirmed on
+  2026-11-18. Not a bug, and not the `$VREL` item of `make_ics.sh`.
 - **No IC-method confound in the resolution test.** Production and 1/8 legs
   share `ParticleLoad = masked`, PANPHASIA phases and cosmology; only
   `GridRes` and the model differ. 2026-10-15.
@@ -224,11 +227,6 @@ The full list, with falsifiers, is the protocol. In order:
 
 ## Pending, none of it blocking the items above
 
-- **`DoBaryonVrel = yes` with `transfer = CAMB_file` in every IC of the
-  suite** (production, legs, grid, anchor). The grid TFs are named `_camb`.
-  If the house rule holds (`camb` convention only with `DoBaryonVrel = no`),
-  the whole suite shares the mismatch: ratios are unaffected, absolute
-  numbers might not be. This is the `$VREL` item of `make_ics.sh`. Ask Pato.
 - **A 1024³ Δ = 3000 pair** if the threshold is to be measured at production
   resolution (M2). Two production-size runs; a decision, not yet taken.
 - `common/units.py` has `Omega_m = 0.3053`; the runs declare `0.3046109`.

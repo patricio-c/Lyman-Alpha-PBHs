@@ -1332,3 +1332,11 @@ Random-sightline extraction (1500, seed 1) at z = 3 on the new pair, the ten
 legs and the twelve grid runs; seed 2 at z = 3 and seed 1 at z = 2.2 and 4.0
 on the new pair; stage 10 ratios chained on them; stage 13 on the new pair,
 c/z_reio/7.5 and c/delta_dif. Job numbers in the protocol.
+
+## 2026-11-18 (third) — DoBaryonVrel is deliberate
+
+Every IC in the suite — production, low-resolution legs, the twelve
+`more_power` runs and the `CDM_sc` anchor — has `DoBaryonVrel = yes` with
+`transfer = CAMB_file`. Asked whether that was intended: **yes, on purpose**
+(Pato). Removed from HANDOFF Pending; the `CDM_sc` anchor keeps the same
+setting as the grid it anchors.
