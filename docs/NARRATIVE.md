@@ -4,7 +4,7 @@
 no history — for that, and for the things that turned out to be wrong, see
 [`LOGBOOK.md`](LOGBOOK.md), which is append-only.
 
-Last rewritten: 2026-11-18.
+Last rewritten: 2026-11-18 (evening).
 
 ---
 
@@ -59,7 +59,12 @@ The large-scale half of that is the part that should not exist.
 ## Why it exists: the forest does not see matter, it sees gas
 
 At the same large scale where the matter power ratio is 1.0002, the **gas**
-power ratio is **0.806**.
+power ratio is **0.806**. The re-run of the same pair with native sightlines
+gives 0.803 from SWIFT's own gas spectra, and the same converted fractions to
+the last digit: the deficit belongs to the model and the scheme, not to one
+run. It is also not constant in time. The gas-to-matter ratio at that scale
+is 0.60 at z = 5, 0.80 at z = 3 and 0.91 at z = 2.2: the drain is deepest
+early and is partly erased as the surviving gas falls back onto the matter.
 
 The chain is this. More small-scale power means structure collapses earlier and
 in more places. More gas therefore crosses the density threshold of the
@@ -160,12 +165,15 @@ at one eighth the mass resolution isolates the sampling:
 Both outcomes are results. They change what is claimed, not whether there is
 something to claim.
 
-A first look at the flux leans towards the second branch. Renormalised to a
-common mean flux, the large-scale deficit at 1/8 the mass resolution is about
-half as deep as at full resolution (6–12% against 22% at k ≈ 0.003 s/km), and
-the small-scale excess is larger. It is only a first look — the first 768
-sightlines, compared against the old pair — and the gas census that decides
-it has not been run.
+The two first looks disagree. In the flux, renormalised to a common mean
+flux, the large-scale deficit at 1/8 the mass resolution looked about half as
+deep (6–12% against 22% at k ≈ 0.003 s/km). That used the first 768
+sightlines in file order, against the old pair. In the 3D gas, at 1/8 the mass
+resolution FCT converts half as much (25% against 49%), yet the gas-to-matter
+ratio at z = 3 moves only from 0.80 to 0.83. The difference is large at z = 5
+and gone by z = 2.2. So the amount converted depends on resolution, while the
+large-scale imprint on the gas barely does. The flux on random sightlines,
+from both resolutions, decides which first look to believe.
 
 ## What is still open
 
@@ -173,11 +181,12 @@ Ordered by what blocks what. None of the last five depends on the outcome
 above, so they can proceed in parallel with the suite.
 
 1. **The drain amplitude between legs (b) and (c)** — the deciding test,
-   described above. The runs exist; the flux leans towards a
-   resolution-dependent drain; the gas census is not done.
-2. **Only one redshift exists.** The entire method is about redshift evolution
-   and there is a single point at z = 3. Every run in the suite now has
-   outputs from z = 5 to 1.8; nothing has been measured at a second redshift.
+   described above. The gas census is done and says the imprint at z = 3
+   barely moves; the conversion halves. The flux on random sightlines is
+   queued.
+2. **Only one redshift exists in the flux.** The entire method is about
+   redshift evolution. The 3D gas is now measured at every output from z = 5
+   to 1.8 in every run; the flux at z = 2.2 and 4.0 on the new pair is queued.
 3. **`b(k,z)` has never been computed.** It needs the amplitudes of the Poisson
    and broken-spectrum terms from the initial conditions, which are calculable
    rather than fitted. Without it there is no central figure.
@@ -190,9 +199,9 @@ above, so they can proceed in parallel with the suite.
    normalised so that CDM matches observations.
 6. **Validation against SWIFT's own sightlines.** The production pair has been
    re-run with the line-of-sight output fixed, and has finished. The first native
-   number is in (CDM τ_eff 0.42458 against 0.42989 regenerated), but every P1D
-   number here still comes from regenerated rays, and the FCT/CDM ratio on the
-   new pair has not been measured.
+   number is in (CDM τ_eff 0.42458 against 0.42989 regenerated), and the new
+   pair's gas reproduces the old pair's to 0.3%. Every P1D number here still
+   comes from regenerated rays; the native FCT/CDM flux ratio is queued.
 7. **Separating pressure smoothing from the density threshold.** The matter
    ratio that used to stand here has been measured — it was already on disk —
    and it answers the attenuation question below. What it does not do is

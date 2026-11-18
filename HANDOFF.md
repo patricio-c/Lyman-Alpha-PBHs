@@ -40,14 +40,17 @@ the cluster is remote.
 
 # 0. Current status — read this first, every session
 
-**Last rewritten 2026-11-18.** This section is the punch list and it is
+**Last rewritten 2026-11-18 (evening).** This section is the punch list and it is
 rewritten whenever it stops being true. Everything from section 1 down is
 stable background. Read, in this order:
 
 1. this section,
-2. [`docs/NARRATIVE.md`](docs/NARRATIVE.md) — the current best telling,
+2. [`docs/PROTOCOL_2026-11-18_validation_suite.md`](docs/PROTOCOL_2026-11-18_validation_suite.md)
+   — what is measured next, the commands, the falsifiers, and the track by
+   which SpecWizard produces the quoted flux numbers,
+3. [`docs/NARRATIVE.md`](docs/NARRATIVE.md) — the current best telling,
    always rewritten, no history,
-3. the entries of [`docs/LOGBOOK.md`](docs/LOGBOOK.md) from 2026-10-14 on —
+4. the entries of [`docs/LOGBOOK.md`](docs/LOGBOOK.md) from 2026-10-14 on —
    append-only, including the things that turned out to be wrong.
 
 Section 0-bis below is the 2026-09-03/04 session, kept because its tables are
@@ -91,6 +94,16 @@ sightlines) unless stated otherwise.
 - **QLA converts on density alone.** `physical_density > mean_density_Omega_b
   * over_density`, `over_density = 1000`; no temperature cut, unlike the
   `T < 10^5 K` of Viel et al. 2004 and GADGET-III. 2026-11-18.
+- **The new pair reproduces the old one, in 3D.** Gas power ratio at
+  k = 0.15 Mpc⁻¹, z = 3: 0.8027 (new, SWIFT spectra, stage 14) against 0.8055
+  (old, stage 09); converted 14.08% / 49.83% by count in both. D = r_gg/r_mm
+  evolves: 0.601 (z = 5), 0.803 (3), 0.913 (2.2). 2026-11-18 (second).
+- **In the 3D gas, z_reio and extra power separate.** FCT/CDM drain identical
+  to 0.1% for z_reio = 6, 7.5, 9 at 512³; the box (40 vs 80 Mpc/h) does not
+  matter at k = 0.15 Mpc⁻¹. Same entry.
+- **sigma at 10⁸ M☉/h orders the conversion** across the twelve grid runs at
+  z = 3 with no rank inversion; the P1D-kernel integral of the extra power
+  does not. Same entry.
 - **No IC-method confound in the resolution test.** Production and 1/8 legs
   share `ParticleLoad = masked`, PANPHASIA phases and cosmology; only
   `GridRes` and the model differ. 2026-10-15.
@@ -107,6 +120,9 @@ sightlines) unless stated otherwise.
     IC marking, z = 198           0.02729 CDM  0.07239 FCT  -> 2.652   stage 13
     tau_eff raw, z = 3            0.42989 CDM  0.40426 FCT  (old pair, 600 regenerated rays)
                                   0.42458 CDM  (new pair, 6144 native rays)
+    f_gas = M_gas/M_tot, z = 3    0.1375 CDM   0.0819 FCT  (new pair, statistics.txt)
+    D(0.15 Mpc^-1), z = 5/3/2.2   0.601 / 0.803 / 0.913 new pair;  0.738 / 0.830 / 0.900 at 1/8 mass
+    conversion, z = 3, grid       16.6% (poisson_6) .. 38.7% (NB_2); sc load = gas on 1024^3
     flux ratio, k ~ 0.003 s/km    0.777 full res (old pair)
                                   0.88-0.94 at 1/8 mass res (new legs, 768 rays, renormalised)
 
@@ -122,6 +138,7 @@ every LOS file; all have z = 3. The queue is empty. Nothing below the
     threshold Delta = 3000, 512^3 ONLY        lyman/low_resolution/c/delta_dif/{CDM,FCT}            lr_delta_cdm, ...
     80 Mpc/h, 1024^3 (particle mass of c)     lyman/low_resolution/a/{CDM,FCT}                      lr_a_cdm, ...
     PBH amplitude grid (sc load, CAMB TFs)    lyman/more_power/{NB_1..6, poisson_1..6}              NB_i, poisson_i
+    its CDM anchor (sc, CDM b40 TF) RUNNING   lyman/more_power/CDM_sc   (IC job 1580446, SWIFT 1580447)   CDM_sc
 
 The base 1/8 leg (z_reio 7.5, Δ = 1000) is `c/z_reio/7.5`. Registry names are
 in `common/runs.py` (changed 2026-11-18, see Traps).
@@ -132,50 +149,46 @@ key authentication when Pato's VPN is up. Test with a `BatchMode=yes`
 the login node: every script in `scripts/` is an sbatch file meant to be
 launched from the repository root.
 
-**The Clementina working tree** is at `8fe8d01` with untracked outputs only
-and no modified tracked file. Fast-forward it to `main` before running
-anything: stage 13, the scripts and the registry fix live there.
+**The Clementina working tree** was fast-forwarded to `main` on 2026-11-18;
+untracked files that blocked it were identical to `main` except a docstring,
+and were moved to `cache/pre_ff_2026-11-18/`. Keep it on `main` and pull
+before running.
+
+**Queued on 2026-11-18**, all chained (job numbers in the protocol): random
+1500-sightline extraction at z = 3 on the new pair, the ten legs and the
+twelve grid runs, plus the new pair at z = 2.2, 4.0 and a second seed; the
+stage 10 ratios on them; stage 13 on the new pair, c/7.5 and c/delta. Read
+`logs/xrand_*`, `logs/ratios_*`, `logs/dp1d_*`, `figures/dp1d_*__*` and
+`figures/los_manifest.tsv`.
 
 ## The next things, each with the command that decides it
 
-1. **The new pair at z = 3.** The first FCT/CDM with native sightlines, and
-   open item 6 against the old pair's 0.7475 / 18σ. Same random 1500
-   sightlines in both models, paired if stage 02 says so, normalised to the
-   CDM's own raw τ_eff:
+The full list, with falsifiers, is the protocol. In order:
 
-        Z=3.0 sbatch scripts/run_new_pair_ratio.sh
-        Z=3.0 SEED=2 sbatch scripts/run_new_pair_ratio.sh     # sample variance
-        Z=3.0 N=6144 sbatch scripts/run_new_pair_ratio.sh     # all of them, ~5 h
-
-2. **Decide the resolution test with the gas, not the flux.** The flux first
-   look says the large-scale deficit is about half as deep at 1/8 the mass
-   resolution (2026-10-18). What decides it is the conversion fraction and
-   r_gas at matched particle mass. Stage 13 gives the conversion fraction and
-   the IC marking in one pass:
-
-        python stages/13_initial_overdensity.py \
-            --cdm /data/contrib/pad_140/pcolazo/lyman/low_resolution/c/z_reio/7.5/CDM \
-            --fct /data/contrib/pad_140/pcolazo/lyman/low_resolution/c/z_reio/7.5/FCT \
-            --out figures/qla_initial_overdensity_lr
-
-   (it looks for the snapshots nearest z = 198 and z = 3; if the 1/8 legs
-   have no z = 198 output, pass `--z-early` with their first one)
-
-   then stage 09 on the same pair at z = 3 for r_gas, and the flux with random
-   sightlines instead of the first 768:
-
-        CDM_DIR=/data/contrib/pad_140/pcolazo/lyman/low_resolution/c/z_reio/7.5/CDM \
-        FCT_DIR=/data/contrib/pad_140/pcolazo/lyman/low_resolution/c/z_reio/7.5/FCT \
-        LABEL=lr75 Z=3.0 sbatch scripts/run_new_pair_ratio.sh
-
-   Compare with the new pair from item 1, not the old one.
-
-3. **A second redshift.** Every run carries z = 5 → 1.8. Same script on the
-   new pair with `Z=2.2` and `Z=4.0`.
-
-4. **The `more_power` grid** is blocked on its CDM anchor (Pending).
+1. **Read the queued flux ratios.** `figures/dp1d_cdm40__fct40_z3.0_n1500_s{1,2}`
+   is M1 (open item 6): native sightlines against the old pair's 0.7475 / 18σ.
+   `figures/dp1d_lr_zreio75_cdm__lr_zreio75_fct_z3.0_n1500_s1` against it is
+   the resolution test in the flux. The 3D gas says the drain barely moves with
+   resolution at z = 3; the 768-sightline flux said it halves. One of them is
+   wrong.
+2. **The z_reio and threshold ratios in the flux** (same job): whether the
+   separation seen in 3D survives thermal broadening.
+3. **When `CDM_sc` reaches z = 3:** `sbatch scripts/run_census.sh` with
+   `CDM_sc` as the grid reference, `RUNS=CDM_sc Z=3.0 sbatch
+   scripts/run_extract_random.sh`, then the grid ratios against it.
+4. **`tools/specwizard_to_cache.py`** and the delivery to Maria, in the
+   priority order of the protocol.
+5. Then `b(k,z)` (open item 3), on the new pair at z = 2.2, 3, 4.
 
 ## Traps that have bitten more than once
+
+- **SWIFT's gas spectrum carries (M_gas/M_tot)².** `src/power_spectrum.c`
+  normalises every species to Omega_m rho_crit. Raw, the new pair reads
+  r_gg = 0.285 instead of 0.803. Stage 14 divides it out from `statistics.txt`.
+- **The grid's gas is on 1024³, production's on 512³** (`sc` vs `masked`).
+  Never compare a grid run with `cdm40` and call the difference extra power.
+- **`ln -sf $(readlink X)` with a regular file X replaces X.** It cost
+  NB_1's binary once (restored, LOGBOOK 2026-11-18 second). Use `cp -p`.
 
 - **`--norm none` ratios carry the mean-flux difference.** At 1/8 resolution
   FCT has 27% more τ_eff than CDM and the raw ratio read as the drain
@@ -211,19 +224,16 @@ anything: stage 13, the scripts and the registry fix live there.
 
 ## Pending, none of it blocking the items above
 
-- **The `more_power` CDM anchor (ask Pato).** The grid uses `ParticleLoad = sc`
-  and `tf_z/grilla12/*_camb.csv`; CDM b40 is `masked` with
-  `tf_200_v_cdm_CLASS.csv`. Pato says the `_CLASS`/`_camb` names may be naming
-  only. Ask whether `grilla12` holds a pure-CDM CAMB TF for a clean `sc`
-  anchor run, and whether the names reflect different Boltzmann codes.
-- A 1024³ Δ = 3000 pair, if open item 7 is to be done at production
-  resolution.
+- **`DoBaryonVrel = yes` with `transfer = CAMB_file` in every IC of the
+  suite** (production, legs, grid, anchor). The grid TFs are named `_camb`.
+  If the house rule holds (`camb` convention only with `DoBaryonVrel = no`),
+  the whole suite shares the mismatch: ratios are unaffected, absolute
+  numbers might not be. This is the `$VREL` item of `make_ics.sh`. Ask Pato.
+- **A 1024³ Δ = 3000 pair** if the threshold is to be measured at production
+  resolution (M2). Two production-size runs; a decision, not yet taken.
 - `common/units.py` has `Omega_m = 0.3053`; the runs declare `0.3046109`.
-- The `$VREL` bug in `make_ics.sh`.
-- The z = 3 delivery for Maria: four files into `external/specwizard/`, plus
-  `tests/t13_specwizard.py`.
-- `b(k,z)`: `tests/t11_bias_bk.py` needs `A_P`, `A_b`, `k_max`, calculable
-  from the production transfer function (`IC_lyman_alpha/6_10^6/B40`).
+- Stage 15's header conversion misses the low-resolution legs (no snapshot
+  within 0.05 of the target z); stage 14's f_gas covers them at every z.
 - The common DESI `(k1, k2)` window across redshift bins.
 - The 3.5× converted-mass ratio against the observed stellar mass density.
 

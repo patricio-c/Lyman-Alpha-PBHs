@@ -1220,3 +1220,115 @@ Scripts committed, all sbatch files launched from the repository root:
 as `scripts/run_test_p1d_all.sh`), `scripts/run_initial_overdensity.sh`
 (stage 13), and `scripts/run_new_pair_ratio.sh` (FCT/CDM with N random
 sightlines, the same ones in both models; written, never launched).
+
+## 2026-11-18 (second) — the census on the new pair, from SWIFT's own spectra
+
+Plan for the next round written as
+[`PROTOCOL_2026-11-18_validation_suite.md`](PROTOCOL_2026-11-18_validation_suite.md):
+four measurements (the new pair, the threshold, extra power, z_reio), and the
+track by which SpecWizard produces the flux numbers that get quoted. Every
+extraction job now writes `figures/los_manifest.tsv` with the checksum of
+each sightline sample.
+
+### SWIFT's gas spectrum is normalised to the matter density
+
+Every run since 2026-09 asked SWIFT for `gas-gas` (and the new pair and the
+legs for `gas-matter`) at 38 redshifts, so the gas census needs no snapshot.
+Read raw, it gives r_gg(0.15 Mpc⁻¹, z = 3) = **0.285** on the new pair,
+against 0.8055 from stage 09 on the old one. The cause is in
+`src/power_spectrum.c`: every species is turned into a contrast with
+`meanrho = Omega_m * critical_density_0`, so P_gas,SWIFT = (M_gas/M_tot)² ×
+P_δgas. A run that converts more gas has less gas power for that reason
+alone. Stage 14 divides it out with M_gas/M_tot from the run's own
+`statistics.txt` at the redshift of each spectrum. **Never read a SWIFT gas
+spectrum ratio without that factor.**
+
+### The new pair reproduces the old one
+
+    new pair, z = 3          fgas = M_gas/M_tot     r_gg(0.15)   r_mm(0.15)
+    cdm40                    0.1375
+    fct40                    0.0819                 0.8027       1.0002
+    old pair, stage 09                              0.8055
+
+Converted by particle count at z = 3 (stage 15, headers): **14.08% and
+49.83%**, the old pair's numbers to the last digit. Same phases, same
+resolution, so this is the expected answer, and it is the first time it has
+been measured on a second run.
+
+D = r_gg/r_mm at k = 0.15 Mpc⁻¹ **evolves strongly**: 0.601 at z = 5, 0.803
+at z = 3, 0.913 at z = 2.2. The drain is largest early and is partly erased
+as the gas re-collapses onto the matter.
+
+### Resolution, box size, threshold and z_reio, in 3D
+
+All at k = 0.15 Mpc⁻¹, FCT/CDM within each leg:
+
+    D(0.15)            z = 5    z = 3    z = 2.2   conv z=3 (CDM / FCT, by mass)
+    full res, new      0.601    0.803    0.913     13.8% / 48.7%
+    1/8 mass (c)       0.738    0.830    0.900      9.6% / 25.3%
+    80 Mpc/h (a)       0.731    0.833    0.906
+    c, Delta = 3000    0.749    0.829    0.893
+    c, z_reio 6 / 9    0.737 / 0.738   0.830 / 0.830   0.900 / 0.900
+
+- **Resolution.** At 1/8 the mass resolution FCT converts half as much
+  (25% against 49%), yet D at z = 3 moves only from 0.80 to 0.83. The
+  difference is large at z = 5 and gone by z = 2.2. That does not match the
+  768-sightline flux first look (deficit half as deep), which used the first
+  sightlines in file order. The random-sightline flux on both resolutions is
+  queued and decides which one to believe.
+- **Box size.** Leg a (80 Mpc/h, the particle mass of c) agrees with c to
+  0.3% at z = 3. Nothing at k = 0.15 Mpc⁻¹ depends on the box.
+- **Threshold at 512³.** Delta = 3000 against 1000: r_gg +2.3% in CDM, +2.1%
+  in FCT; the FCT/CDM drain is the same to 0.2%. As expected at this
+  resolution, and it says nothing about 1024³.
+- **z_reio.** At k = 0.15 Mpc⁻¹ the gas power changes by less than 0.1%
+  between z_reio = 6, 7.5 and 9, in both models, from z = 5 to 2.2; at
+  k = 27 Mpc⁻¹ in FCT by 0.7% (z_reio 6) and 0.3% (z_reio 9). FCT/CDM is the
+  same for all three to 0.1%: in the 3D gas, extra power and reionization
+  redshift separate. Whether they also separate in the flux, where thermal
+  broadening acts, is what the queued flux ratios measure.
+
+### The grid is at higher gas resolution than production
+
+`ParticleLoad = sc` at `GridRes = 1024` puts the gas on 1024³ particles
+(N_gas = 1073741824 in every grid IC). `masked` puts it on 512³. The grid is
+at **eight times better gas mass resolution** than the production pair, not
+the same. That is the offset seen against `cdm40` on 2026-10-18:
+`poisson_6`, with almost no extra power, converts 16.6% by z = 3 against
+14.1%, and sits at D(0.15) = 0.935 against `cdm40`. The CDM anchor is
+needed, and was started: `more_power/CDM_sc`, the grid's `conf.conf` with only
+`transfer_file` changed to the CDM b40 TF (IC job 1580446, SWIFT 1580447,
+the same binary, md5 f9b47a5b, as every grid run).
+
+### Which measure of extra power orders the conversion
+
+Stage 15, from each `input_powerspec.txt` against CDM b40. Conversion at
+z = 3 is absolute per run and needs no anchor. Across the twelve grid runs:
+
+    ordering by                                      rank inversions in conv(z=3)
+    sigma at R = 0.067 Mpc/h (1e8 Msun/h)            0
+    extra Delta^2 area, cut at 20 h/Mpc (common)     0
+    extra Delta^2 area, cut at 80 h/Mpc (own gas Nyquist)   2  (p1/NB5, NB6/NB3)
+    P1D-kernel integral at k_par = 0.003 s/km, cut 20       1  (NB1/NB4)
+
+Conversion runs from 16.6% (`poisson_6`) to 38.7% (`NB_2`). The six poisson
+runs span 16.64–16.94%, although their Δ² area to 80 h/Mpc reaches 0.70 of
+CDM's: power above ~20 h/Mpc does not convert gas. The 2026-09-16 result
+(sigma at 10⁸ M☉ sets the conversion) holds at z = 3 as it did at z = 7. The
+quantity the forest integrates is not the one that orders the drain. The
+flux response of the grid waits for the anchor.
+
+### A mistake made, and undone
+
+Creating the anchor's run directory, a `ln -sf $(readlink swift_mpi) …` with
+an empty `readlink` replaced `more_power/NB_1/swift_mpi`, a regular file,
+with a symlink. It was restored by copying the binary from `NB_2`: the
+eleven other grid copies, `cdm-box-40-1024` and `fct-box-40-1024` all have
+md5 f9b47a5b and 2686208 bytes, as NB_1's had. No output of NB_1 was touched.
+
+### Queued (all sbatch, from the repository root)
+
+Random-sightline extraction (1500, seed 1) at z = 3 on the new pair, the ten
+legs and the twelve grid runs; seed 2 at z = 3 and seed 1 at z = 2.2 and 4.0
+on the new pair; stage 10 ratios chained on them; stage 13 on the new pair,
+c/z_reio/7.5 and c/delta_dif. Job numbers in the protocol.

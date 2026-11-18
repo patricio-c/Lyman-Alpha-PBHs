@@ -41,6 +41,8 @@ for _z, _t in (("6", "6"), ("7.5", "75"), ("9", "9")):
 for _i in range(1, 7):
     REGISTRY[f"NB_{_i}"] = f"more_power/NB_{_i}"
     REGISTRY[f"poisson_{_i}"] = f"more_power/poisson_{_i}"
+# the grid's own CDM: grid conf.conf (sc load) with the CDM b40 TF. Started 2026-11-18.
+REGISTRY["CDM_sc"] = "more_power/CDM_sc"
 
 
 def run_dir(name):
